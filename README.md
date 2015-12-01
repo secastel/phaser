@@ -1,7 +1,7 @@
 # phASER
 Performs haplotype phasing using read alignments in BAM format from both DNA and RNA based experiments.
 
-Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) at the New York Genome Center and Columbia University Department of Systems Biology in the [Lappalainen Lab](http://tlab.org).
+Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) at the New York Genome Center and Columbia University Department of Systems Biology in the [Lappalainen Lab](http://tllab.org).
 
 Runs on Python 2.7.x and has the following dependencies: [IntervalTree](https://github.com/jamescasbon/PyVCF), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [Samtools](http://www.htslib.org), [Bedtools](http://bedtools.readthedocs.org)
 
