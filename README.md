@@ -18,7 +18,7 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--o** - Output file prefix name.
 
 #Optional
-* **--as_q_cutoff** _(0.05)_ - Bottom quantile to cutoff for alignment score. Reads with less than this alignment score quantile will not be included in the phasing.
+* **--as_q_cutoff** _()_ - Bottom quantile to cutoff for alignment score. Reads with less than this alignment score quantile will not be included in the phasing.
 * **--ab_q_cutoff** _()_ - Bottom quantile to cutoff for read aligned bases. Reads with fewer aligned bases than this aligned bases quantile will not be included in the phasing.
 * **--blacklist** _()_ - BED file containing genomic intervals to be excluded from phasing (for example HLA).
 * **--write_vcf** _(1)_ - Create a VCF containing phasing information (0,1).
