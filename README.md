@@ -10,7 +10,7 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 
 #Arguments
 ##Required
-* **--bam** - Comma separated list of BAM files containing reads. Duplicates should be marked, and file should be indexed using samtools index.
+* **--bam** - Comma separated list of BAM files containing reads. Duplicates should be marked, and files should be indexed using samtools index.
 * **--vcf** - VCF file containing genotype for the sample. May be gzipped. Chromosome names must be consistent between BAM and VCF.
 * **--sample** - Name of sample to use in VCF file.
 * **--baseq** - Minimum base quality at the SNP required for reads to be counted.
