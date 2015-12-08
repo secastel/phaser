@@ -28,7 +28,7 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--remove_dups** _(1)_ - Remove duplicate reads from all analyses (0,1).
 * **--pass_only** _(1)_ - Only use variants labled with PASS in the VCF filter field (0,1).
 * **--min_cov** _(0)_ - Minimum total coverage level before outputting haplotypic counts.
-* **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1).
+* **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1). NOTE: these sites will receive 'nan' for the fields conflicting_config_p and phase_concordant.
 
 ##Performance Related
 * **--threads** _(1)_ - Maximum number of threads to use. Note the maximum thread count for some tasks is bounded by the data (for example 1 thread per contig for haplotype construction).
