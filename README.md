@@ -3,7 +3,7 @@ Performs haplotype phasing using read alignments in BAM format from both DNA and
 
 Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
-Runs on Python 2.7.x and has the following dependencies: [IntervalTree](https://github.com/jamescasbon/PyVCF), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [bedtools](http://bedtools.readthedocs.org)
+Runs on Python 2.7.x and has the following dependencies: [IntervalTree](https://github.com/jamescasbon/PyVCF), [pyVCF](https://pyvcf.readthedocs.org), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [bedtools](http://bedtools.readthedocs.org)
 
 #Usage
 Requires a BAM and VCF, produces a VCF with computed haplotype phases and a result file containing haplotype details, statistics, and read counts.
