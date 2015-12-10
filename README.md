@@ -18,8 +18,8 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--o** - Output file prefix name.
 
 #Optional
-* **--as_q_cutoff** _()_ - Bottom quantile to cutoff for alignment score. Reads with less than this alignment score quantile will not be included in the phasing.
-* **--ab_q_cutoff** _()_ - Bottom quantile to cutoff for read aligned bases. Reads with fewer aligned bases than this aligned bases quantile will not be included in the phasing.
+* **--as_q_cutoff** _(0.05)_ - Bottom quantile to cutoff for alignment score. Reads with less than this alignment score quantile will not be included in the phasing.
+* **--ab_q_cutoff** _(0)_ - Bottom quantile to cutoff for read aligned bases. Reads with fewer aligned bases than this aligned bases quantile will not be included in the phasing.
 * **--blacklist** _()_ - BED file containing genomic intervals to be excluded from phasing (for example HLA).
 * **--write_vcf** _(1)_ - Create a VCF containing phasing information (0,1).
 * **--include_indels** _(0)_ - Include indels in the analysis (0,1). NOTE: since mapping is a problem for indels including them will likely result in poor quality phasing unless specific precautions have been taken.
@@ -29,6 +29,12 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--pass_only** _(1)_ - Only use variants labled with PASS in the VCF filter field (0,1).
 * **--min_cov** _(0)_ - Minimum total coverage level before outputting haplotypic counts.
 * **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1). NOTE: these sites will receive 'nan' for the fields conflicting_config_p and phase_concordant.
+
+##Genome wide phasing
+* **--gw_phase_vcf** _(0)_ - Rephase GT field of output VCF using phASER genome wide phasing. See --gw_phase_method for options.
+* **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase.
+* **--af_vcf** _()_ - VCF with allele frequencies (for example 1000 Genomes).
+* **--af_field** _('AF')_ - Field from --af_vcf to use for allele frequency.
 
 ##Performance Related
 * **--threads** _(1)_ - Maximum number of threads to use. Note the maximum thread count for some tasks is bounded by the data (for example 1 thread per contig for haplotype construction).
