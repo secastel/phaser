@@ -32,7 +32,7 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 
 ##Genome Wide Phasing
 * **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase.
-* **--gw_af_vcf** _()_ - VCF with allele frequencies (for example 1000 Genomes).
+* **--gw_af_vcf** _()_ - VCF with allele frequencies (for example 1000 Genomes). These should be from the same population that phasing was performed using.
 * **--gw_af_field** _('AF')_ - Field from --gw_af_vcf to use for allele frequency.
 * **--gw_phase_vcf** _(0)_ - Rephase GT field of output VCF using phASER genome wide phasing (0,1). See --gw_phase_method for options.
 * **--gw_phase_vcf_min_config_p** _(0.05)_ - If replacing GT field in VCF only replace when phASER haplotype conflicting_config_p >= this value.
