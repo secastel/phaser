@@ -31,10 +31,12 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1). NOTE: these sites will receive 'nan' for the fields conflicting_config_p and phase_concordant.
 
 ##Genome Wide Phasing
-* **--gw_phase_vcf** _(0)_ - Rephase GT field of output VCF using phASER genome wide phasing (0,1). See --gw_phase_method for options.
 * **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase.
 * **--gw_af_vcf** _()_ - VCF with allele frequencies (for example 1000 Genomes).
 * **--gw_af_field** _('AF')_ - Field from --gw_af_vcf to use for allele frequency.
+* **--gw_phase_vcf** _(0)_ - Rephase GT field of output VCF using phASER genome wide phasing (0,1). See --gw_phase_method for options.
+* **--gw_phase_vcf_min_config_p** _(0.05)_ - If replacing GT field in VCF only replace when phASER haplotype conflicting_config_p >= this value.
+* **--gw_phase_vcf_min_confidence** _(0.60)_ - If replacing GT field in VCF only replace when phASER haplotype gw_confidence >= this value.
 
 ##Performance Related
 * **--threads** _(1)_ - Maximum number of threads to use. Note the maximum thread count for some tasks is bounded by the data (for example 1 thread per contig for haplotype construction).
@@ -106,7 +108,7 @@ Contains all haplotypes phased along with detailed phasing statistics.
 ##*out_prefix*.vcf.gz
 
 Output of the input VCF file gzipped and containing the following added fields in the appropriate sample column:
-* **GT** - This will only be outputted (overwriting the original input phase with PW) if --gw_phase_vcf = 1.
+* **GT** - This will only be outputted (overwriting the original input phase with PW) if --gw_phase_vcf = 1 and the phase statistics meet the criteria specified by --gw_phase_vcf_min_config_p and --gw_phase_vcf_min_confidence.
 * **PW** - phASER Genome Wide Phase - The method for determing the genome wide phase is specified by --gw_phase_method.
 * **PC** - phASER Genome Wide Phase Confidence - This represents the confidence of the GW phase assignment (between 0.5 and 1). A value of 0.5 indicates equal support for the two genome wide phasing configurations. In these cases the phase from the input VCF will be outputted.
 * **PG** - phASER Local Block Genotype - The phase of of this variant in the block specified in PB.
