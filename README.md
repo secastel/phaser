@@ -109,7 +109,7 @@ Contains all haplotypes phased along with detailed phasing statistics.
 
 Output of the input VCF file gzipped and containing the following added fields in the appropriate sample column:
 * **GT** - This will only be outputted (overwriting the original input phase with PW) if --gw_phase_vcf = 1 and the phase statistics meet the criteria specified by --gw_phase_vcf_min_config_p and --gw_phase_vcf_min_confidence.
-* **PW** - phASER Genome Wide Phase - The method for determing the genome wide phase is specified by --gw_phase_method.
+* **PW** - phASER Genome Wide Phase - The method for determing the genome wide phase is specified by --gw_phase_method. If no phASER phasing is available, or the there is no support for a specific phase the input VCF phase will be outputted.
 * **PC** - phASER Genome Wide Phase Confidence - This represents the confidence of the GW phase assignment (between 0.5 and 1). A value of 0.5 indicates equal support for the two genome wide phasing configurations. In these cases the phase from the input VCF will be outputted.
 * **PG** - phASER Local Block Genotype - The phase of of this variant in the block specified in PB.
 * **PB** - phASER Local Block - Comma separated list of variant IDs found in this haplotype block.
