@@ -14,7 +14,8 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--vcf** - VCF file containing genotype for the sample. May be gzipped. Chromosome names must be consistent between BAM and VCF.
 * **--sample** - Name of sample to use in VCF file.
 * **--baseq** - Minimum base quality at the SNP required for reads to be counted.
-* **--mapq** - Mimimum mapping qualityfor reads to be counted. NOTE: can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.
+* **--mapq** - Mimimum mapping quality for reads to be counted. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.
+* **--isize** - Maximum allowed insert size for read pairs. Can be a comma separated list, each value corresponding to a max isize for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different expected insert sizes.
 * **--o** - Output file prefix name.
 
 #Optional
