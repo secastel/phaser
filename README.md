@@ -132,10 +132,11 @@ If --output_network is enabled will contain the names of each allele in the spec
 * **id** - VariantID:VariantAllele
 
 ##*out_prefix*.allele_config.txt
-Note: each variant pair will be listed twice, with A and B switched.
+
+This file contains the allele configuration for each variant where a phase could be established using the input reads. This file can be used to identify all cases of compound heterozygousity. Note: each variant pair will be listed twice, with A and B switched.
+
 * **variantA** - Unique variant ID for first variant. Format = chr_pos_ref_alt.
 * **rsIDA** - RS ID for variant A.
 * **variantB** - Unique variant ID for second variant. Format = chr_pos_ref_alt.
 * **rsIDB** - RS ID for variant B.
-* **configuration** - Haplotype configuration for the two variants listed, one of two possibilities: "trans" = Ref,Alt|Alt,Ref (compound heterozygote), "cis" = Ref,Ref|Alt,Alt.
-* **inferred** - Number of inferred connections between these two variants, 1 inferred connection = 1 read spanning alternative alleles of two variants.
+* **configuration** - Haplotype configuration for the two variants listed, one of two possibilities: "trans" = ref,alt|alt,ref (compound heterozygote), "cis" = ref,ref|alt,alt.
