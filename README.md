@@ -5,6 +5,8 @@ Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalain
 
 Runs on Python 2.7.x and has the following dependencies: [IntervalTree](https://github.com/jamescasbon/PyVCF), [pyVCF](https://pyvcf.readthedocs.org), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [bedtools](http://bedtools.readthedocs.org)
 
+![alt tag](https://raw.github.com/secastel/phaser/docs/phaser_workflow.png)
+
 #Usage
 Requires a BAM and VCF, produces a VCF with computed haplotype phases and a result file containing haplotype details, statistics, and read counts.
 
@@ -96,7 +98,7 @@ This file contains the allele configuration for each variant where a phase could
 * **rsid_b** - RS ID for variant B.
 * **configuration** - Haplotype configuration for the two variants listed, one of two possibilities: "trans" = ref,alt|alt,ref (compound heterozygote), "cis" = ref,ref|alt,alt.
 
-##*out_prefix*.variant_coverage.txt
+##*out_prefix*.allelic_counts.txt
 
 Contains reference and alternative read counts for each heterozygous variant used for phasing. Format is the same as the [GATK ASEReadCounter](https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_rnaseq_ASEReadCounter.php) and [allelecounter](https://github.com/secastel/allelecounter) outputs. If --min_cov is set only includes variants where totalCount ≥ min_cov.
 * 1 - **contig** - Contig variant is found on.
