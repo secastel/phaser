@@ -19,6 +19,7 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--o** - Output file prefix name.
 
 #Optional
+* **--cc_threshold** _(0.01)_ - Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration p-value lower than this threshold will be removed.
 * **--isize** _(0)_ - Maximum allowed insert size for read pairs. Can be a comma separated list, each value corresponding to a max isize for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different expected insert sizes. Set to 0 for no maximum size.
 * **--as_q_cutoff** _(0.05)_ - Bottom quantile to cutoff for alignment score. Reads with less than this alignment score quantile will not be included in the phasing.
 * **--ab_q_cutoff** _(0)_ - Bottom quantile to cutoff for read aligned bases. Reads with fewer aligned bases than this aligned bases quantile will not be included in the phasing.
@@ -33,17 +34,17 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1). NOTE: these sites will receive 'nan' for the fields conflicting_config_p and phase_concordant.
 
 ##Genome Wide Phasing
-* **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase.
-* **--gw_af_vcf** _()_ - VCF with allele frequencies (for example 1000 Genomes). These should be from the same population that phasing was performed using.
+* **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.
+* **--gw_af_vcf** _()_ - VCF with allele frequencies from the population which was used to do the phasing. If left blank it will look for an allele frequency in the input VCF (--vcf).
 * **--gw_af_field** _('AF')_ - Field from --gw_af_vcf to use for allele frequency.
 * **--gw_phase_vcf** _(0)_ - Rephase GT field of output VCF using phASER genome wide phasing (0,1). See --gw_phase_method for options.
-* **--gw_phase_vcf_min_confidence** _(0.60)_ - If replacing GT field in VCF only replace when phASER haplotype gw_confidence >= this value.
+* **--gw_phase_vcf_min_confidence** _(0.90)_ - If replacing GT field in VCF only replace when phASER haplotype gw_confidence >= this value.
 
 ##Performance Related
 * **--threads** _(1)_ - Maximum number of threads to use. Note the maximum thread count for some tasks is bounded by the data (for example 1 thread per contig for haplotype construction).
 * **--max_block_size** _(15)_ - Maximum number of variants to phase at once. Number of haplotypes tested = 2 ^ # variants in block. Blocks larger than this will be split into sub blocks, phased, and then the best scoring sub blocks will be phased with each other.
 * **--reads_mem** _(0)_ - Store reads that overlap variants in memory (0,1). NOTE: storing reads in memory increases speed, but grealtly increases memory overhead.
-* **--vcf_mem** _(1)_ - Store the entire VCF into memory for quick processing (0,1). Should not be used with large, multisampling VCF files.
+* **--vcf_mem** _(1)_ - Store the entire VCF into memory for quick processing (0,1). Should not be used with large, multisample VCF files.
 * **--temp_dir** _()_ - Location of temporary directory to use for storing files. If left blank will default to system temp dir. NOTE: potentially large files will be stored in this directory, so please ensure there is sufficient free space.
 * **--max_items_per_thread** _(100,000)_ - Maximum number of items that can be assigned to a single thread to process. NOTE: if this number is too high Python will stall when trying to join the pools.
 
