@@ -125,6 +125,27 @@ Contains the number of unique reads that map to each haplotype for all phased ha
 * 9 - **bCount** - Number of unique reads mapping to haplotype B.
 * 10 - **totalCount** - Total number of unique reads covering this haplotype (aCount + bCount).
 
+##*out_prefix*.variant_connections.txt
+
+Statistics for every variant - variant connection observed by phASER in the data.
+
+* **variant_a** - Unique ID of first variant.
+* **variant_b** - Unique ID of second variant.
+* **supporting_connections** - Number of reads which support the chosen phasing.
+* **total_connections** - Total number of reads which overlap the two variants.
+* **conflicting_configuration_p** - p value from the test for evidence for conflicting haplotype configuration.
+* **phase_concordant** - If the input VCF was phased, is the phasing chosen by phASER concordant with the input phase (1/0).
+
+##*out_prefix*.allele_config.txt
+
+Configuration of all alleles with read backed phasing. Configuration can be either _cis_ or _trans_ and refers to the alternative alleles being either on the same haplotype (_cis_) or different haplotypes (_trans_).
+
+* **variant_a** - Unique ID of first variant.
+* **rsid_a** - RS ID of first variant.
+* **variant_b** - Unique ID of second variant.
+* **rsid_b** - RS ID of second variant.
+* **configuration** - Haplotype configuration of alternative alleles.
+
 ##*out_prefix*.network.links.txt
 
 If --output_network is enabled will contain the number of connections observed between each allele in the specific haplotype.
