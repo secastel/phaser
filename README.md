@@ -1,5 +1,5 @@
 # phASER
-**P**hasing and **A**llele **S**pecific **E**xpression from **R**NA-seq
+**ph**asing and **A**llele **S**pecific **E**xpression from **R**NA-seq
 
 Performs haplotype phasing using read alignments in BAM format from both DNA and RNA based assays.
 
