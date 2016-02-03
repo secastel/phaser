@@ -31,7 +31,7 @@ Requires a BAM and VCF, produces a VCF with computed haplotype phases and a resu
 * **--remove_dups** _(1)_ - Remove duplicate reads from all analyses (0,1).
 * **--pass_only** _(1)_ - Only use variants labled with PASS in the VCF filter field (0,1).
 * **--min_cov** _(0)_ - Minimum total coverage level before outputting haplotypic counts.
-* **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1).
+* **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1). **NOTE** if you intend to run phASER Gene AE this must be enabled.
 
 ##Genome Wide Phasing
 * **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.
