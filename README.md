@@ -86,7 +86,8 @@ Output of the input VCF file gzipped and containing the following added fields i
 * **PW** - phASER Genome Wide Phase - The method for determing the genome wide phase is specified by --gw_phase_method. If no phASER phasing is available, or the there is no support for a specific phase (PC = 0.5) the input VCF phase will be outputted.
 * **PC** - phASER Genome Wide Phase Confidence - This represents the confidence of the GW phase assignment (between 0.5 and 1). A value of 0.5 indicates equal support for the two genome wide phasing configurations. In these cases the phase from the input VCF will be outputted.
 * **PG** - phASER Local Block Genotype - The phase of of this variant in the block specified in PB.
-* **PB** - phASER Local Block - Comma separated list of variant IDs found in this haplotype block.
+* **PI** - phASER Local Block Index - Unique index generated for each haplotype block.
+* **PB** - phASER Local Block Variants - Comma separated list of variant IDs found in this haplotype block.
 
 ##*out_prefix*.allele_config.txt
 
