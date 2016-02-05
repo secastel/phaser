@@ -6,7 +6,7 @@ Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalain
 Runs on Python 2.7.x and has the following dependencies: [pandas](http://pandas.pydata.org), [IntervalTree](https://github.com/jamescasbon/PyVCF)
 
 #Usage
-Requires phASER to have been run with a phased VCF as input with unphased_vars enabled. Takes an input BED format file which contains the coordinates for genes (feautres) where haplotypic counts are to be measured.
+Requires phASER to have been run with a phased VCF as input with unphased_vars enabled. Takes an input BED format file containing the coordinates for genes (feautres) where haplotypic counts are to be measured.
 
 #Arguments
 ##Required
