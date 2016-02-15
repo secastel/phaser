@@ -7,6 +7,8 @@ Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalain
 
 Please see our preprint on [bioRxiv](http://biorxiv.org/content/early/2016/02/12/039529) for details and benchmarking of the method.
 
+phASER is made available under the [GNU GENERAL PUBLIC LICENSE v3](https://github.com/secastel/phaser/tree/master/LICENSE).
+
 Documentation Pages: [phASER](https://github.com/secastel/phaser/tree/master/phaser), [phASER Annotate](https://github.com/secastel/phaser/tree/master/phaser_annotate), [phASER Gene AE](https://github.com/secastel/phaser/tree/master/phaser_gene_ae)
 
 ![alt tag](https://raw.github.com/secastel/phaser/master/docs/phaser_workflow.png)
