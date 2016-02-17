@@ -31,12 +31,12 @@ def main():
 	#Arguments passed 
 	parser = argparse.ArgumentParser()
 	# required
-	parser.add_argument("--bam", help="Indexed BAMs (comma separated) containing RNA-seq reads")
-	parser.add_argument("--vcf", help="VCF for sample")
-	parser.add_argument("--sample", default="", help="Sample name in VCF")
-	parser.add_argument("--mapq", help="Minimum MAPQ for reads to be used for phasing. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.")
-	parser.add_argument("--baseq", type=int, default=0, help="Minimum baseq for bases to be used for phasing")
-	parser.add_argument("--o", help="Out prefix")
+	parser.add_argument("--bam", help="Indexed BAMs (comma separated) containing RNA-seq reads", required = True)
+	parser.add_argument("--vcf", help="VCF for sample", required = True)
+	parser.add_argument("--sample", default="", help="Sample name in VCF", required = True)
+	parser.add_argument("--mapq", help="Minimum MAPQ for reads to be used for phasing. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.", required = True)
+	parser.add_argument("--baseq", type=int, default=0, help="Minimum baseq for bases to be used for phasing", required = True)
+	parser.add_argument("--o", help="Out prefix",required = True)
 	
 	# optional
 	parser.add_argument("--cc_threshold", type=float, default=0.01, help="Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration p-value lower than this threshold will be removed.")
