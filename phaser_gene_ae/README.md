@@ -8,6 +8,8 @@ Runs on Python 2.7.x and has the following dependencies: [pandas](http://pandas.
 #Usage
 Requires phASER to have been run with a phased VCF as input with unphased_vars enabled. Takes an input BED format file containing the coordinates for genes (feautres) where haplotypic counts are to be measured.
 
+**Important Note** - The haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. We are currently developing a setting that will enable the selection of which library to use for generating haplotypic counts, so that the user may select to use only the RNA-seq library.
+
 #Arguments
 ##Required
 * **--haplotypic_counts** - Output file from phASER containing read counts for haplotype blocks.
