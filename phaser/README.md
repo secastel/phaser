@@ -15,6 +15,8 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 * VCF: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz
 * BAM: ftp://ftp.nygenome.org/sec/phaser/NA06986.2.M_111215_4.bam
 
+**Important Note** - The haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. We are currently developing a setting that will enable the selection of which library to use for generating haplotypic counts, so that the user may select to use only the RNA-seq library.
+
 #Arguments
 ##Required
 * **--bam** - Comma separated list of BAM files containing reads. Duplicates should be marked, and files should be indexed using samtools index.
