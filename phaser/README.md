@@ -9,7 +9,7 @@ Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalain
 Runs on Python 2.7.x and has the following dependencies: [IntervalTree](https://github.com/jamescasbon/PyVCF), [pyVCF](https://pyvcf.readthedocs.org), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [bedtools](http://bedtools.readthedocs.org)
 
 #Usage
-Requires a VCF and BAM, produces a VCF with computed haplotype phases and result files containing haplotype details, statistics, and read counts.
+Requires a VCF and BAM, produces a VCF with computed haplotype phases and result files containing haplotype details, statistics, and read counts. By default only sites with the "PASS" flag in the VCF will be considered, however this behavior can be changed using the "--pass_only 0" argument.
 
 **Test case** - 1000 Genomes individual NA06986 with Phase 3 genotype data and Geuvadis RNA-Seq data.
 * VCF: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz
