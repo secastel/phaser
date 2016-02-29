@@ -15,7 +15,7 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 * VCF: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz
 * BAM: ftp://ftp.nygenome.org/sec/phaser/NA06986.2.M_111215_4.bam
 
-**Important Note** - The haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. We are currently developing a setting that will enable the selection of which library to use for generating haplotypic counts, so that the user may select to use only the RNA-seq library.
+**Important Note** - By default, the haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. In such cases the "--haplo_count_bam" argument can be used to specify the libraries that should be used to generate haplotypic counts.
 
 #Arguments
 ##Required
@@ -27,6 +27,7 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 * **--o** - Output file prefix name.
 
 #Optional
+* **--haplo_count_bam** _()_ - Comma separated list of BAMs to use when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank will use all libraries for counts, otherwise will only use the libraries specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...
 * **--cc_threshold** _(0.01)_ - Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration p-value lower than this threshold will be removed.
 * **--isize** _(0)_ - Maximum allowed insert size for read pairs. Can be a comma separated list, each value corresponding to a max isize for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different expected insert sizes. Set to 0 for no maximum size.
 * **--as_q_cutoff** _(0.05)_ - Bottom quantile to cutoff for alignment score. Reads with less than this alignment score quantile will not be included in the phasing.
