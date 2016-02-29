@@ -15,7 +15,8 @@ import vcf;
 import math;
 
 ## IMPORTANT NOTES
-# ASSUMES THAT THERE ARE 2 REAL HAPLOTYPE COMBINATIONS (DIPLOID, NO TRANS-SPLICING)
+# ASSUMES THAT THERE ARE 2 TRUE HAPLOTYPE COMBINATIONS (DIPLOID GENOMES ONLY)
+# DOES NOT CONSIDER CONNECTIONS BETWEEN CHROMOSOMES (NO TRANS-SPLICING)
 
 ## EXTERNAL DEPENDENCIES
 # SAMTOOLS
@@ -31,14 +32,15 @@ def main():
 	#Arguments passed 
 	parser = argparse.ArgumentParser()
 	# required
-	parser.add_argument("--bam", help="Indexed BAMs (comma separated) containing RNA-seq reads", required = True)
+	parser.add_argument("--bam", help="Indexed BAMs (comma separated) containing aligned reads", required = True)
 	parser.add_argument("--vcf", help="VCF for sample", required = True)
-	parser.add_argument("--sample", default="", help="Sample name in VCF", required = True)
+	parser.add_argument("--sample", help="Sample name in VCF", required = True)
 	parser.add_argument("--mapq", help="Minimum MAPQ for reads to be used for phasing. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.", required = True)
-	parser.add_argument("--baseq", type=int, default=0, help="Minimum baseq for bases to be used for phasing", required = True)
+	parser.add_argument("--baseq", type=int, help="Minimum baseq for bases to be used for phasing", required = True)
 	parser.add_argument("--o", help="Out prefix",required = True)
 	
 	# optional
+	parser.add_argument("--haplo_count_bam", default="", help="Comma separated list of BAMs to use when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank will use all libraries for counts, otherwise will only use the libraries specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...")
 	parser.add_argument("--cc_threshold", type=float, default=0.01, help="Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration p-value lower than this threshold will be removed.")
 	parser.add_argument("--isize", default="0", help="Maximum allowed insert size for read pairs. Can be a comma separated list, each value corresponding to a max isize for a file in the input BAM list. Set to 0 for no maximum size.")
 	parser.add_argument("--as_q_cutoff", type=float, default=0.05, help="Bottom quantile to cutoff for read alignment score.")
@@ -80,7 +82,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.2";
+	version = "0.3";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -99,6 +101,12 @@ def main():
 		if xfile != "":
 			if os.path.isfile(xfile) == False:
 				fatal_error("File: %s not found."%(xfile));
+	
+	if args.haplo_count_bam != "":
+		# split and subtract 1 to make 0 based index
+		haplo_count_bam_indices = [x-1 for x in map(int, args.haplo_count_bam.split(","))];
+	else:
+		haplo_count_bam_indices = [];
 	
 	start_time = time.time();
 	global dict_blacklist_interval;
@@ -191,6 +199,7 @@ def main():
 	bed_out = tempfile.NamedTemporaryFile(delete=False);
 	pool_input = {};
 	
+	usable_hets = 0;
 	total_het_vars = 0;
 	total_blacklisted_vars = 0;
 	total_indels_excluded = 0;
@@ -210,8 +219,12 @@ def main():
 				pool_input[output['chr']].append([output['id'],output['pos'],output['length']]);
 				#beds are 0 based
 				bed_out.write("\t".join([output['chr'],str(output['pos']-1),str(output['pos']),"\n"]));
+				usable_hets += 1;
 	
-	fun_flush_print("          %d total heterozygous variants, %d indels excluded, %d blacklisted variants"%(total_het_vars,total_indels_excluded,total_blacklisted_vars));
+	fun_flush_print("          %d of %d heterozygoys sites being used for phasing (%d indels excluded, %d blacklisted variants)"%(usable_hets,total_het_vars,total_indels_excluded,total_blacklisted_vars));
+	
+	if usable_hets == 0:
+		fatal_error("No heterozygous sites that passed all filters were included in the analysis, phASER cannot continue. Check blacklist and pass_only arguments.");
 	
 	fun_flush_print("     creating genomic intervals...");
 	bed_out.close();
@@ -255,15 +268,18 @@ def main():
 	global as_cutoff;
 	global ab_cutoff;
 	global isize_cutoff;
+	global bam_index;
 	
 	intersected_read_output = [];
+	
+	bam_index = 0;
 	
 	if args.reads_mem == 1:
 		#first get all reads that overlap het sites into memory
 		for bam, mapq, isize in zip(bam_list, mapq_list, isize_list):
 			fun_flush_print("     file: %s"%(bam));
 			fun_flush_print("          minimum mapq: %s"%(mapq));
-			reads = subprocess.check_output("samtools view "+samtools_arg+"-L "+bed_out.name+" -q "+mapq+" "+bam, stderr=devnull, shell=True);
+			reads = subprocess.check_output("samtools view "+samtools_arg+" -L "+bed_out.name+" -q "+mapq+" "+bam, stderr=devnull, shell=True);
 			reads = reads.split("\n");
 			total_reads = len(reads);
 			fun_flush_print("          retrieved %d reads"%(total_reads));
@@ -276,13 +292,17 @@ def main():
 			isize_cutoff = int(isize);
 			if isize_cutoff > 0: fun_flush_print("          using insert size cutoff of %d"%(isize_cutoff));
 			
-			pool_input = pool_split(args.threads, reads);
+			if len(reads) > 0:
+				pool_input = pool_split(args.threads, reads);
+			else:
+				pool_input = [];
 		
 			fun_flush_print("          assigning reads to variants...");
 			# because reads are in memory can use multiprocessing
 			intersected_read_output += parallelize(intersect_reads_vars, pool_input);
 			del pool_input;
 			del reads;
+			bam_index += 1;
 		
 	elif args.reads_mem == 0:
 		fun_flush_print("     Reads are being written to disk, this will impact performance.");
@@ -315,45 +335,51 @@ def main():
 			file_list = [];
 			if args.threads > 1:
 				data_length = total_reads;
-			
-				# calculate pool size if all data is divided by number of threads
-				optimal_pool_size = data_length/args.threads;
-				pool_size = min([args.max_items_per_thread, optimal_pool_size]);
-				pool_inputs = data_length / pool_size;
-			
-				fun_flush_print("          splitting reads into %d files with %d reads"%(pool_inputs, pool_size));
-			
-				stream_reads_in = open(reads_out.name, "r");
-				line_number = 1;
-				file_number = 1;
-			
-				file_name = new_temp_file();
-				stream_out = open(file_name, "w");
-				file_list.append(file_name);
-			
-				for line in stream_reads_in:
-					if (line_number % pool_size == 0 and file_number != pool_inputs):
-						# close current file
-						stream_out.close();
-					
-						# new file
-						file_number += 1;
-						file_name = new_temp_file();
-						stream_out = open(file_name, "w");
-						file_list.append(file_name);
-					
-					# write to open file
-					stream_out.write(line);
-					line_number += 1;
 				
-				# close current file
-				stream_out.close();
+				if total_reads > 0:
+					# calculate pool size if all data is divided by number of threads
+					optimal_pool_size = data_length/args.threads;
+					pool_size = min([args.max_items_per_thread, optimal_pool_size]);
+					pool_inputs = data_length / pool_size;
+			
+					fun_flush_print("          splitting reads into %d files with %d reads"%(pool_inputs, pool_size));
+			
+					stream_reads_in = open(reads_out.name, "r");
+					line_number = 1;
+					file_number = 1;
+			
+					file_name = new_temp_file();
+					stream_out = open(file_name, "w");
+					file_list.append(file_name);
+			
+					for line in stream_reads_in:
+						if (line_number % pool_size == 0 and file_number != pool_inputs):
+							# close current file
+							stream_out.close();
+					
+							# new file
+							file_number += 1;
+							file_name = new_temp_file();
+							stream_out = open(file_name, "w");
+							file_list.append(file_name);
+					
+						# write to open file
+						stream_out.write(line);
+						line_number += 1;
+				
+					# close current file
+					stream_out.close();
+				else:
+					file_list = [];
+					
 			else:
 				file_list.append(reads_out.name);
 		
 			fun_flush_print("          assigning reads to variants...");
 			intersected_read_output += parallelize(intersect_reads_vars_file, file_list);
-		
+			
+			bam_index += 1;
+			
 		#cleanup temp files
 		os.remove(reads_out.name);
 		for file in file_list:
@@ -367,14 +393,38 @@ def main():
 	orphan_reads = "";
 	base_matches = {};
 	base_mismatches = {};
+	read_vars = {};
 	variant_overlaps = [];
 	
 	for item in intersected_read_output:
-		read_intersects += item[0];
+		read_intersects = item[0];
 		orphan_reads += item[1];
 		base_matches = { k: base_matches.get(k, 0) + item[2].get(k, 0) for k in set(base_matches) | set(item[2]) }
 		base_mismatches = { k: base_mismatches.get(k, 0) + item[3].get(k, 0) for k in set(base_mismatches) | set(item[3]) }
 		variant_overlaps += item[4];
+		xbam_index = item[5];
+		
+		# only save reads to haplo count if it is specified in haplo_count_bam
+		record_haplo = 0;
+		if xbam_index in haplo_count_bam_indices:
+			record_haplo = 1;
+		
+		# now add the reads to the variant dictionaries
+		for intersect in read_intersects:
+			var_id = intersect[0];
+			allele_index = intersect[1];
+			read_id = intersect[2];
+			var_dict = dict_variant_reads[var_id];
+			if allele_index >= 0:
+				var_dict['reads'][allele_index].append(read_id);
+				if record_haplo == 1:
+					var_dict['haplo_reads'][allele_index].append(read_id);
+			else:
+				var_dict['other_reads'].append(read_id);
+		
+			if read_id not in read_vars: read_vars[read_id] = [];
+			if var_id not in read_vars[read_id]: read_vars[read_id].append(var_id);
+		
 	
 	#clear memory
 	del intersected_read_output;
@@ -396,27 +446,13 @@ def main():
 			base_mismatch_count += mis_matches;
 	
 	if base_match_count == 0:
-		fatal_error("No reads could be matched to variants. Please double check your settings and input files. Common reasons for this occurring include: 1) MAPQ or BASEQ set incorrectly 2) BAM and VCF have different chromosome names (IE 'chr1' vs '1').");
+		fatal_error("No reads could be matched to variants. Please double check your settings and input files. Common reasons for this occurring include: 1) MAPQ or BASEQ set too conservatively 2) BAM and VCF have different chromosome names (IE 'chr1' vs '1').");
 	
 	fun_flush_print("#3. Identifying connected variants...");
 	# probability of generating a random base
 	global noise_e;
 	noise_e = (float(base_mismatch_count) / (float(base_match_count+base_mismatch_count)*2));
 	fun_flush_print("     sequencing noise level estimated at %f"%(noise_e));
-	
-	# now add the reads to the variant dictionaries
-	read_vars = {};
-	for intersect in read_intersects:
-		var_id = intersect[0];
-		allele_index = intersect[1];
-		read_id = intersect[2];
-		var_dict = dict_variant_reads[var_id];
-		if allele_index >= 0:
-			var_dict['reads'][allele_index].append(read_id);
-		else:
-			var_dict['other_reads'].append(read_id);
-		if read_id not in read_vars: read_vars[read_id] = [];
-		if var_id not in read_vars[read_id]: read_vars[read_id].append(var_id);
 	
 	# premake read sets for faster comparison
 	for var_id in dict_variant_reads:
@@ -467,12 +503,12 @@ def main():
 	
 	out_stream = open(args.o+".variant_connections.txt","w");
 	out_stream.write("variant_a\tvariant_b\tsupporting_connections\ttotal_connections\tconflicting_configuration_p\tphase_concordant\n");
-	
+
 	# remove all those connections which failed
 	c_dropped = 0;
 	for connection in pool_output:
 		chr,variant_a,variant_b,conflicting_config_p,c_supporting,c_total,phase_concordant = connection;
-		
+	
 		# if the number of conflicting reads is more than would be expected from noise, then disconnect these two variants
 		# they will not be used for haplotype construction
 		out_stream.write("\t".join(map(str,[variant_a,variant_b,c_supporting,c_total,conflicting_config_p,phase_concordant]))+"\n");
@@ -480,17 +516,17 @@ def main():
 			#print("%s	%s"%(variant_a,variant_b));
 			dict_variant_overlap[chr][variant_a].remove(variant_b);
 			dict_variant_overlap[chr][variant_b].remove(variant_a);
-			
+		
 			# if these variants have no other connections remove them from overlap dictionary
 			if len(dict_variant_overlap[chr][variant_a]) == 0:
 				del dict_variant_overlap[chr][variant_a];
 			if len(dict_variant_overlap[chr][variant_b]) == 0:
 				del dict_variant_overlap[chr][variant_b];
-			
+		
 			c_dropped += 1;
-	
+
 	out_stream.close();
-	
+
 	fun_flush_print("     %d variant connections dropped because of conflicting configurations (threshold = %f)"%(c_dropped,args.cc_threshold));
 		
 	# create output file for orphan reads if needed
@@ -562,7 +598,6 @@ def main():
 			block_haplotypes.append(haplotype_block);
 			phased_vars += len(haplotype_block);
 	
-		
 	# count total number of junctions for each haplotype
 	pool_output = parallelize(count_hap_junctions, block_haplotypes);
 	
@@ -590,6 +625,7 @@ def main():
 			print_warning("     maximum block size exceeded for block: "+str(block));
 		
 	pool_output = parallelize(count_hap_reads, pool_input);
+	
 	del pool_input;
 	
 	supporting_reads = {};
@@ -784,6 +820,9 @@ def main():
 		set_reads = [[],[]];
 		hap_counts = [0,0];
 		
+		set_hap_expr_reads = [[],[]];
+		hap_expr_counts = [0,0];
+		
 		for hap_index in range(0,2):
 			hap_x = [haplotype_a, haplotype_b][hap_index];
 			
@@ -794,10 +833,15 @@ def main():
 				phases[hap_index].append(get_allele_phase(allele,dict_variant_reads[id]));
 				
 				allele_index = dict_variant_reads[id]['alleles'].index(allele);
-				set_reads[hap_index] += dict_variant_reads[id]['reads'][allele_index];
+				set_reads[hap_index] += dict_variant_reads[id]['read_set'][allele_index];
+				set_hap_expr_reads[hap_index] += dict_variant_reads[id]['haplo_reads'][allele_index];
+				
 				
 			set_reads[hap_index] = list(set(set_reads[hap_index]));
 			hap_counts[hap_index] = len(set_reads[hap_index]);
+			
+			set_hap_expr_reads[hap_index] = list(set(set_hap_expr_reads[hap_index]));
+			hap_expr_counts[hap_index] = len(set_hap_expr_reads[hap_index]);
 			
 		# determine if phasing is completely concordant
 		# don't include variants whose phase was unknown in the original VCF
@@ -911,7 +955,22 @@ def main():
 		stream_out.write(str_join("\t",[chrs[0],min(positions),max(positions),max(positions)-min(positions),len(variants),list_to_string(rsids),list_to_string(alleles[0])+"|"+list_to_string(alleles[1]),hap_counts[0],hap_counts[1],sum(hap_counts),supporting_connections,total_connections,phase_string[0]+"|"+phase_string[1],phase_concordant,corrected_phase_string[0]+"|"+corrected_phase_string[1],cor_phase_stat])+"\n");
 		
 		#$ write ASE stats
-		total_cov = int(hap_counts[0])+int(hap_counts[1]);
+		
+		if len(haplo_count_bam_indices) == 0:
+			# if no BAM has been selected for haplo counts just use the sum across all BAMs
+			hap_a_count = hap_counts[0];
+			hap_b_count = hap_counts[1]
+			hap_a_reads = set_reads[0];
+			hap_b_reads = set_reads[1];
+		else:
+			# otherwise specifically use the counts from the specified BAM(s)
+			hap_a_count = hap_expr_counts[0];
+			hap_b_count = hap_expr_counts[1]
+			hap_a_reads = set_hap_expr_reads[0];
+			hap_b_reads = set_hap_expr_reads[1];
+		
+		total_cov = int(hap_a_count)+int(hap_b_count);
+		
 		if 	total_cov >= args.min_cov:
 			out_block_gw_phase = "0/1";
 			if corrected_phases[0][0] == 0:
@@ -921,9 +980,10 @@ def main():
 				# haplotype A = GW phase 1
 				out_block_gw_phase = "1|0";
 			
-			fields_out = [chrs[0],min(positions),max(positions),list_to_string(variants),len(variants),list_to_string(alleles[0]),list_to_string(alleles[1]),hap_counts[0],hap_counts[1],total_cov,out_block_gw_phase,cor_phase_stat];
+			fields_out = [chrs[0],min(positions),max(positions),list_to_string(variants),len(variants),list_to_string(alleles[0]),list_to_string(alleles[1]),hap_a_count,hap_b_count,total_cov,out_block_gw_phase,cor_phase_stat];
 			if args.output_read_ids == 1:
-				fields_out += [list_to_string(set_reads[0]),list_to_string(set_reads[1])];
+				fields_out += [list_to_string(hap_a_reads),list_to_string(hap_b_reads)];
+			
 			stream_out_ase.write(str_join("\t",fields_out)+"\n");
 		
 		## OUTPUT THE NETWORK FOR A SPECIFIC HAPLOTYPE
@@ -977,16 +1037,30 @@ def main():
 	
 		for variant in singletons:
 			dict_var = dict_variant_reads[variant];
-			total_cov = len(dict_var['read_set'][0])+len(dict_var['read_set'][1]);
-			if 	total_cov >= args.min_cov:
+			
+			if len(haplo_count_bam_indices) == 0:
+				# if no BAM has been selected for haplo counts just use the sum across all BAMs
+				hap_a_count = len(dict_var['read_set'][0]);
+				hap_b_count = len(dict_var['read_set'][1]);
+				hap_a_reads = dict_var['read_set'][0];
+				hap_b_reads = dict_var['read_set'][1];
+			else:
+				# otherwise specifically use the counts from the specified BAM(s)
+				hap_a_count = len(set(dict_var['haplo_reads'][0]));
+				hap_b_count = len(set(dict_var['haplo_reads'][1]));
+				hap_a_reads = set(dict_var['haplo_reads'][0]);
+				hap_b_reads = set(dict_var['haplo_reads'][1]);
+			
+			total_cov = int(hap_a_count)+int(hap_b_count);
+			if total_cov >= args.min_cov:
 				if "-" not in dict_var['phase']:
 					phase_string = str(dict_var['phase'].index(dict_var['alleles'][0]))+"|"+str(dict_var['phase'].index(dict_var['alleles'][1]));
 				else:
 					phase_string = "0/1";
-				fields_out = [dict_var['chr'],str(dict_var['pos']),str(dict_var['pos']),variant,str(1),dict_var['alleles'][0],dict_var['alleles'][1],str(len(dict_var['read_set'][0])),str(len(dict_var['read_set'][1])),str(total_cov),phase_string,"1"];
+				fields_out = [dict_var['chr'],str(dict_var['pos']),str(dict_var['pos']),variant,str(1),dict_var['alleles'][0],dict_var['alleles'][1],str(hap_a_count),str(hap_b_count),str(total_cov),phase_string,"1"];
 				
 				if args.output_read_ids == 1:
-					fields_out += [list_to_string(dict_var['read_set'][0]),list_to_string(dict_var['read_set'][1])];
+					fields_out += [list_to_string(hap_a_reads),list_to_string(hap_b_reads)];
 			
 				stream_out_ase.write("\t".join(fields_out)+"\n");
 	
@@ -1080,6 +1154,7 @@ def write_vcf():
 	global haplotype_lookup;
 	global dict_variant_reads;
 	global haplotype_pvalue_lookup
+	global sample_column;
 	
 	fun_flush_print("#7. Outputting phased VCF...");	
 	if ".gz" in args.vcf:
@@ -1109,9 +1184,6 @@ def write_vcf():
 		vcf_columns = line.replace("\n","").split("\t");
 		if line[0:1] == "#":
 			vcf_out.write(line);
-			if line[0:4] == "#CHR":
-				if args.sample in vcf_columns:
-					sample_column = vcf_columns.index(args.sample);
 		else:
 			##CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA06986
 			id = vcf_columns[2];
@@ -1368,6 +1440,7 @@ def intersect_reads_vars(reads):
 	global use_as_cutoff;
 	global ab_cutoff;
 	global isize_cutoff;
+	global bam_index;
 	
 	out_intersect = [];
 	out_orphans = "";
@@ -1497,7 +1570,7 @@ def intersect_reads_vars(reads):
 	
 	print_debug("     completed %s - %d"%(chr,map_start));
 	
-	return([out_intersect,out_orphans,base_matches,base_mismatches,variant_overlaps]);
+	return([out_intersect,out_orphans,base_matches,base_mismatches,variant_overlaps,bam_index]);
 
 def print_warning(text):
 	if args.show_warning == 1:
@@ -1540,14 +1613,18 @@ def pool_split(threads, data):
 	# this is probably conservative but I haven't checked out what the best number is yet
 	
 	pool_size = min([args.max_items_per_thread, optimal_pool_size]);
-	pool_inputs = data_length / pool_size;
 	
-	for i in range(0,pool_inputs):
-		#last pool gets the remaining reads
-		if i == (pool_inputs-1):
-			pool_input.append(data[(i*pool_size):]);
-		else:
-			pool_input.append(data[(i*pool_size):((i+1)*pool_size)]);
+	if pool_size > 0:
+		pool_inputs = data_length / pool_size;
+	
+		for i in range(0,pool_inputs):
+			#last pool gets the remaining reads
+			if i == (pool_inputs-1):
+				pool_input.append(data[(i*pool_size):]);
+			else:
+				pool_input.append(data[(i*pool_size):((i+1)*pool_size)]);
+	else:
+		pool_input = [];
 	
 	return(pool_input);
 
@@ -1561,17 +1638,20 @@ def pool_setup(pool_input):
 def parallelize(function, pool_input):
 	global args;
 	
-	threads = min([len(pool_input),args.threads]);
-	if args.threads > 1:
-		pool = multiprocessing.Pool(processes=threads);
-		pool_output = pool.map(function, pool_input);
-		pool.close() # no more tasks
-		pool.join()  # wrap up current tasks
+	if len(pool_input) > 0:
+		threads = min([len(pool_input),args.threads]);
+		if args.threads > 1:
+			pool = multiprocessing.Pool(processes=threads);
+			pool_output = pool.map(function, pool_input);
+			pool.close() # no more tasks
+			pool.join()  # wrap up current tasks
+		else:
+			pool_output = [];
+			for input in pool_input:
+				pool_output.append(function(input));		
 	else:
 		pool_output = [];
-		for input in pool_input:
-			pool_output.append(function(input));
-	
+		
 	return(pool_output);
 
 def generate_intervals(input):
@@ -1671,7 +1751,7 @@ def process_vcf(lines):
 											#generate a unique id
 											unique_id = chrom+"_"+str(pos)+"_"+("_".join(all_alleles));
 						
-											data_out.append({"id":unique_id, "rsid":id,"ref":vcf_columns[3],"chr":chrom,"pos":pos,"length":ref_length,"alleles":ind_alleles,"phase":phase, "gw_phase":phase, "maf":maf, "other_reads":[], "reads":[[] for i in range(len(ind_alleles))]});
+											data_out.append({"id":unique_id, "rsid":id,"ref":vcf_columns[3],"chr":chrom,"pos":pos,"length":ref_length,"alleles":ind_alleles,"phase":phase, "gw_phase":phase, "maf":maf, "other_reads":[], "reads":[[] for i in range(len(ind_alleles))], "haplo_reads":[[] for i in range(len(ind_alleles))]});
 										else:
 											indels_excluded += 1;
 																		
@@ -1703,7 +1783,10 @@ def calculate_as_cutoff(reads):
 					fun_flush_print("          no alginment score found in BAM file, can't use AS cutoff.");
 					return([False,0]);
 				
-		percentile_cutoff = numpy.percentile(alignment_scores,args.as_q_cutoff*100);
+		if len(alignment_scores) > 0:
+			percentile_cutoff = numpy.percentile(alignment_scores,args.as_q_cutoff*100);
+		else:
+			return([False,0]);
 	
 		#stream_out.close();
 		return([True,percentile_cutoff]);
