@@ -9,7 +9,7 @@ def main():
 	parser.add_argument("--haplotypic_counts", help="Output file from phASER containing read counts for haplotype blocks. NOTE: unphased_vars must have been enabled when phASER was run.")
 	parser.add_argument("--gw_cutoff", type=float,default=0.9, help="Minimum genome wide phase confidence for phASER haplotype blocks.")
 	parser.add_argument("--features", default="", help="File in BED format (0 BASED COORDINATES - chr,start,stop,name) containing the features to produce counts for.")
-	parser.add_argument("--min_cov", type=int, default=8, help="Minimum total coverage for a feature to be outputted.")
+	parser.add_argument("--min_cov", type=int, default=1, help="Minimum total coverage for a feature to be outputted.")
 	parser.add_argument("--o", help="Output file")
 	
 	global args;
