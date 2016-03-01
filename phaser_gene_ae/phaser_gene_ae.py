@@ -58,7 +58,7 @@ def main():
 		# intersect haplotype with feature
 		chrom = str(row['contig']);
 		if row['totalCount'] > 0 and chrom in dict_feature_intervals and row['blockGWPhase'] != "0/1" and float(row['gwStat'] >= args.gw_cutoff):
-			features = dict_feature_intervals[chrom][row['start']:row['stop']];
+			features = dict_feature_intervals[chrom][row['start']-1:row['stop']];
 			for feature in features:
 				feature_index = feature.data;
 				if row['blockGWPhase'] == "0|1":
