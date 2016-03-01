@@ -80,8 +80,6 @@ def main():
 	for index in range(0,len(dict_features.keys())):
 		total_cov = dict_features[index]['aCount']+dict_features[index]['bCount'];
 		n_variants = len(dict_features[index]['variants']);
-		if n_variants == 1:
-			print(dict_features[index]['name']);
 			
 		if total_cov >= args.min_cov:
 			stream_out.write("\t".join(map(str,[dict_features[index]['chr'],dict_features[index]['start'],dict_features[index]['stop'],dict_features[index]['name'],dict_features[index]['aCount'],dict_features[index]['bCount'],total_cov, n_variants, ",".join(dict_features[index]['variants'])]))+"\n");
