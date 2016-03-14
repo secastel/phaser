@@ -15,7 +15,19 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 * VCF: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz
 * BAM: ftp://ftp.nygenome.org/sec/phaser/NA06986.2.M_111215_4.bam
 
-**Important Note** - By default, the haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. In such cases the "--haplo_count_bam" argument can be used to specify the libraries that should be used to generate haplotypic counts.
+**Useful files**
+
+We suggest that you exclude variants in HLA genes using the "--blacklist" argument becuase of the high mapping error rate in these genes. A file containing coordinates for hg19 is included here for convenience:
+
+* BED: ftp://ftp.nygenome.org/sec/phaser/hg19_hla.bed.gz
+
+If your goal is to do gene level allelic expression analysis, you may want to consider using the "--haplo_count_blacklist" argument, which can exclude known problem sites from haplotypic counts. If you have not taken any percautions to deal with allelic mapping bias, we suggest you exclude sites with known bias, as outlined in [Castel et al](http://genomebiology.biomedcentral.com/articles/10.1186/s13059-015-0762-6). A file containing coordinates for hg19 is included here for convenience: 
+
+* BED: ftp://ftp.nygenome.org/sec/phaser/hg19_haplo_count_blacklist.bed.gz
+
+**Combining data across sequencing run types**
+
+By default, the haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. In such cases the "--haplo_count_bam" argument can be used to specify the libraries that should be used to generate haplotypic counts.
 
 #Arguments
 ##Required
