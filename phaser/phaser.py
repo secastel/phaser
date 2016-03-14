@@ -41,6 +41,7 @@ def main():
 	
 	# optional
 	parser.add_argument("--haplo_count_bam", default="", help="Comma separated list of BAMs to use when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank will use all libraries for counts, otherwise will only use the libraries specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...")
+	parser.add_argument("--haplo_count_blacklist", default="", help="BED file containing genomic intervals to be excluded from haplotypic counts. Reads from any variants which lie within these regions will not be counted for haplotypic counts.")
 	parser.add_argument("--cc_threshold", type=float, default=0.01, help="Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration p-value lower than this threshold will be removed.")
 	parser.add_argument("--isize", default="0", help="Maximum allowed insert size for read pairs. Can be a comma separated list, each value corresponding to a max isize for a file in the input BAM list. Set to 0 for no maximum size.")
 	parser.add_argument("--as_q_cutoff", type=float, default=0.05, help="Bottom quantile to cutoff for read alignment score.")
@@ -82,7 +83,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.3";
+	version = "0.4";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -95,7 +96,7 @@ def main():
 	devnull = open(os.devnull, 'w')
 	
 	# check that all passed files actually exist
-	check_files = args.bam.split(",") + [args.vcf,args.blacklist];
+	check_files = args.bam.split(",") + [args.vcf,args.blacklist,args.haplo_count_blacklist];
 	
 	for xfile in check_files:
 		if xfile != "":
@@ -113,13 +114,34 @@ def main():
 	dict_blacklist_interval = {};
 	
 	if len(args.blacklist) > 0:
-		fun_flush_print("#0. Loading blacklist intervals...");
+		fun_flush_print("#0. Loading variant blacklist intervals...");
 		stream_in = open(args.blacklist,"r");
 		for line in stream_in:
 			columns = line.replace("\n","").split("\t");
 			chr = columns[0];
 			if chr not in dict_blacklist_interval: dict_blacklist_interval[chr] = IntervalTree();
-			dict_blacklist_interval[chr][int(columns[1]):int(columns[2])] = columns[3];
+			
+			name = "";
+			if len(columns) > 3: name = columns[3];
+			
+			dict_blacklist_interval[chr][int(columns[1]):int(columns[2])] = name;
+	
+		stream_in.close();
+	
+	dict_haplo_blacklist_interval = {};
+	
+	if len(args.haplo_count_blacklist) > 0:
+		fun_flush_print("#0. Loading haplotypic count blacklist intervals...");
+		stream_in = open(args.haplo_count_blacklist,"r");
+		for line in stream_in:
+			columns = line.replace("\n","").split("\t");
+			chr = columns[0];
+			if chr not in dict_haplo_blacklist_interval: dict_haplo_blacklist_interval[chr] = IntervalTree();
+			
+			name = "";
+			if len(columns) > 3: name = columns[3];
+				
+			dict_haplo_blacklist_interval[chr][int(columns[1]):int(columns[2])] = name;
 	
 		stream_in.close();
 	
@@ -820,9 +842,6 @@ def main():
 		set_reads = [[],[]];
 		hap_counts = [0,0];
 		
-		set_hap_expr_reads = [[],[]];
-		hap_expr_counts = [0,0];
-		
 		for hap_index in range(0,2):
 			hap_x = [haplotype_a, haplotype_b][hap_index];
 			
@@ -833,15 +852,9 @@ def main():
 				phases[hap_index].append(get_allele_phase(allele,dict_variant_reads[id]));
 				
 				allele_index = dict_variant_reads[id]['alleles'].index(allele);
-				set_reads[hap_index] += dict_variant_reads[id]['read_set'][allele_index];
-				set_hap_expr_reads[hap_index] += dict_variant_reads[id]['haplo_reads'][allele_index];
-				
 				
 			set_reads[hap_index] = list(set(set_reads[hap_index]));
 			hap_counts[hap_index] = len(set_reads[hap_index]);
-			
-			set_hap_expr_reads[hap_index] = list(set(set_hap_expr_reads[hap_index]));
-			hap_expr_counts[hap_index] = len(set_hap_expr_reads[hap_index]);
 			
 		# determine if phasing is completely concordant
 		# don't include variants whose phase was unknown in the original VCF
@@ -956,19 +969,43 @@ def main():
 		
 		#$ write ASE stats
 		
-		if len(haplo_count_bam_indices) == 0:
-			# if no BAM has been selected for haplo counts just use the sum across all BAMs
-			hap_a_count = hap_counts[0];
-			hap_b_count = hap_counts[1]
-			hap_a_reads = set_reads[0];
-			hap_b_reads = set_reads[1];
-		else:
-			# otherwise specifically use the counts from the specified BAM(s)
-			hap_a_count = hap_expr_counts[0];
-			hap_b_count = hap_expr_counts[1]
-			hap_a_reads = set_hap_expr_reads[0];
-			hap_b_reads = set_hap_expr_reads[1];
+		# generate haplotypic counts
+		set_hap_expr_reads = [[],[]];
+		hap_expr_counts = [0,0];
 		
+		for hap_index in range(0,2):
+			hap_x = [haplotype_a, haplotype_b][hap_index];
+			
+			for var_index in range(0, len(variants)):
+				id = variants[var_index];
+				chrom = dict_variant_reads[id]['chr'];
+				pos = int(dict_variant_reads[id]['pos']);
+				
+				# check to see if variant is blacklisted
+				if chrom in dict_haplo_blacklist_interval:
+					blacklist = dict_haplo_blacklist_interval[chrom][pos-1:pos];
+				else:
+					blacklist = [];
+
+				if len(blacklist) == 0:
+					allele = dict_variant_reads[id]['alleles'][int(hap_x[var_index])];
+					allele_index = dict_variant_reads[id]['alleles'].index(allele);
+					
+					if len(haplo_count_bam_indices) == 0:
+						# if no BAM has been selected for haplo counts just use the sum across all BAMs
+						set_hap_expr_reads[hap_index] += dict_variant_reads[id]['read_set'][allele_index];
+					else:
+						# otherwise specifically use the counts from the specified BAM(s)
+						set_hap_expr_reads[hap_index] += dict_variant_reads[id]['haplo_reads'][allele_index];
+				
+			set_hap_expr_reads[hap_index] = list(set(set_hap_expr_reads[hap_index]));
+			hap_expr_counts[hap_index] = len(set_hap_expr_reads[hap_index]);
+		
+		hap_a_count = hap_expr_counts[0];
+		hap_b_count = hap_expr_counts[1]
+		hap_a_reads = set_hap_expr_reads[0];
+		hap_b_reads = set_hap_expr_reads[1];
+	
 		total_cov = int(hap_a_count)+int(hap_b_count);
 		
 		if 	total_cov >= args.min_cov:
@@ -1037,32 +1074,44 @@ def main():
 	
 		for variant in singletons:
 			dict_var = dict_variant_reads[variant];
-			
-			if len(haplo_count_bam_indices) == 0:
-				# if no BAM has been selected for haplo counts just use the sum across all BAMs
-				hap_a_count = len(dict_var['read_set'][0]);
-				hap_b_count = len(dict_var['read_set'][1]);
-				hap_a_reads = dict_var['read_set'][0];
-				hap_b_reads = dict_var['read_set'][1];
-			else:
-				# otherwise specifically use the counts from the specified BAM(s)
-				hap_a_count = len(set(dict_var['haplo_reads'][0]));
-				hap_b_count = len(set(dict_var['haplo_reads'][1]));
-				hap_a_reads = set(dict_var['haplo_reads'][0]);
-				hap_b_reads = set(dict_var['haplo_reads'][1]);
-			
-			total_cov = int(hap_a_count)+int(hap_b_count);
-			if total_cov >= args.min_cov:
-				if "-" not in dict_var['phase']:
-					phase_string = str(dict_var['phase'].index(dict_var['alleles'][0]))+"|"+str(dict_var['phase'].index(dict_var['alleles'][1]));
-				else:
-					phase_string = "0/1";
-				fields_out = [dict_var['chr'],str(dict_var['pos']),str(dict_var['pos']),variant,str(1),dict_var['alleles'][0],dict_var['alleles'][1],str(hap_a_count),str(hap_b_count),str(total_cov),phase_string,"1"];
+			chrom = dict_var['chr'];
+			pos = int(dict_var['pos']);
 				
-				if args.output_read_ids == 1:
-					fields_out += [list_to_string(hap_a_reads),list_to_string(hap_b_reads)];
+			# check to see if variant is blacklisted
+			if chrom in dict_haplo_blacklist_interval:
+				blacklist = dict_haplo_blacklist_interval[chrom][pos-1:pos];
+			else:
+				blacklist = [];
+
+			if len(blacklist) == 0:
+				allele = dict_var['alleles'][int(hap_x[var_index])];
+				allele_index = dict_var['alleles'].index(allele);
+				
+				if len(haplo_count_bam_indices) == 0:
+					# if no BAM has been selected for haplo counts just use the sum across all BAMs
+					hap_a_count = len(dict_var['read_set'][0]);
+					hap_b_count = len(dict_var['read_set'][1]);
+					hap_a_reads = dict_var['read_set'][0];
+					hap_b_reads = dict_var['read_set'][1];
+				else:
+					# otherwise specifically use the counts from the specified BAM(s)
+					hap_a_count = len(set(dict_var['haplo_reads'][0]));
+					hap_b_count = len(set(dict_var['haplo_reads'][1]));
+					hap_a_reads = set(dict_var['haplo_reads'][0]);
+					hap_b_reads = set(dict_var['haplo_reads'][1]);
 			
-				stream_out_ase.write("\t".join(fields_out)+"\n");
+				total_cov = int(hap_a_count)+int(hap_b_count);
+				if total_cov >= args.min_cov:
+					if "-" not in dict_var['phase']:
+						phase_string = str(dict_var['phase'].index(dict_var['alleles'][0]))+"|"+str(dict_var['phase'].index(dict_var['alleles'][1]));
+					else:
+						phase_string = "0/1";
+					fields_out = [dict_var['chr'],str(dict_var['pos']),str(dict_var['pos']),variant,str(1),dict_var['alleles'][0],dict_var['alleles'][1],str(hap_a_count),str(hap_b_count),str(total_cov),phase_string,"1"];
+				
+					if args.output_read_ids == 1:
+						fields_out += [list_to_string(hap_a_reads),list_to_string(hap_b_reads)];
+			
+					stream_out_ase.write("\t".join(fields_out)+"\n");
 	
 		#output haplotypes for unphased variants (if enabled)
 		for variant in singletons:
