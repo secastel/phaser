@@ -11,7 +11,9 @@ Runs on Python 2.7.x and has the following dependencies: [IntervalTree](https://
 #Usage
 Requires a VCF and BAM, produces a VCF with computed haplotype phases and result files containing haplotype details, statistics, and read counts. By default only sites with the "PASS" flag in the VCF will be considered, however this behavior can be changed using the "--pass_only 0" argument.
 
-**Test case** - 1000 Genomes individual NA06986 with Phase 3 genotype data and Geuvadis RNA-Seq data.
+**Test case**
+
+1000 Genomes individual NA06986 with Phase 3 genotype data and Geuvadis RNA-Seq data.
 * VCF: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz
 * BAM: ftp://ftp.nygenome.org/sec/phaser/NA06986.2.M_111215_4.bam
 
