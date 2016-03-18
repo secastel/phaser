@@ -19,7 +19,7 @@ Requires phASER to have been run with a phased VCF as input with unphased_vars e
 ##Optional
 * **--min_cov** _(1)_ - Minimum total coverage for a feature to be outputted.
 * **--gw_cutoff** _(0.9)_ - Minimum genome wide phase confidence for phASER haplotype blocks.
-* **--no_gw_phase** _(0.9)_ - Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved (IE which haplotype A/B is arbitrary and inconsistent between genes).
+* **--no_gw_phase** _(0)_ - Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved (IE which haplotype A/B is arbitrary and inconsistent between genes).
 
 #Output File
 
