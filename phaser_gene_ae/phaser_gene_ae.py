@@ -6,11 +6,14 @@ import argparse;
 def main():
 	parser = argparse.ArgumentParser()
 	# required
-	parser.add_argument("--haplotypic_counts", help="Output file from phASER containing read counts for haplotype blocks. NOTE: unphased_vars must have been enabled when phASER was run.")
+	parser.add_argument("--haplotypic_counts", required=True, help="Output file from phASER containing read counts for haplotype blocks. NOTE: unphased_vars must have been enabled when phASER was run.")
+	parser.add_argument("--features", required=True, help="File in BED format (0 BASED COORDINATES - chr,start,stop,name) containing the features to produce counts for.")
+	parser.add_argument("--o", required=True, help="Output file")
+	
+	# optional
 	parser.add_argument("--gw_cutoff", type=float,default=0.9, help="Minimum genome wide phase confidence for phASER haplotype blocks.")
-	parser.add_argument("--features", default="", help="File in BED format (0 BASED COORDINATES - chr,start,stop,name) containing the features to produce counts for.")
 	parser.add_argument("--min_cov", type=int, default=1, help="Minimum total coverage for a feature to be outputted.")
-	parser.add_argument("--o", help="Output file")
+	parser.add_argument("--no_gw_phase", type=int, default=0, help="Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved (IE which haplotyp A/B is arbitrary and inconsistent between genes).")
 	
 	global args;
 	args = parser.parse_args()
@@ -57,20 +60,30 @@ def main():
 	for index, row in df_haplo_counts.iterrows():
 		# intersect haplotype with feature
 		chrom = str(row['contig']);
-		if row['totalCount'] > 0 and chrom in dict_feature_intervals and row['blockGWPhase'] != "0/1" and float(row['gwStat'] >= args.gw_cutoff):
+		if row['totalCount'] > 0 and chrom in dict_feature_intervals:
 			features = dict_feature_intervals[chrom][row['start']-1:row['stop']];
-			for feature in features:
-				feature_index = feature.data;
-				if row['blockGWPhase'] == "0|1":
-					# A = GW haplotype 0
-					dict_features[feature_index]['aCount'] += row['aCount'];
-					dict_features[feature_index]['bCount'] += row['bCount'];
-				elif row['blockGWPhase'] == "1|0":
-					# A = GW haplotype 1
-					dict_features[feature_index]['aCount'] += row['bCount'];
-					dict_features[feature_index]['bCount'] += row['aCount'];
+			
+			if args.no_gw_phase == 1:
+				for feature in features:
+					feature_index = feature.data;
+					if row['totalCount'] > (dict_features[feature_index]['aCount'] + dict_features[feature_index]['bCount']):
+						dict_features[feature_index]['aCount'] = row['aCount'];
+						dict_features[feature_index]['bCount'] = row['bCount'];
+						dict_features[feature_index]['variants'] = row['variants'].split(",");
+			
+			elif row['blockGWPhase'] != "0/1" and float(row['gwStat'] >= args.gw_cutoff):
+				for feature in features:
+					feature_index = feature.data;
+					if row['blockGWPhase'] == "0|1":
+						# A = GW haplotype 0
+						dict_features[feature_index]['aCount'] += row['aCount'];
+						dict_features[feature_index]['bCount'] += row['bCount'];
+					elif row['blockGWPhase'] == "1|0":
+						# A = GW haplotype 1
+						dict_features[feature_index]['aCount'] += row['bCount'];
+						dict_features[feature_index]['bCount'] += row['aCount'];
 				
-				dict_features[feature_index]['variants'] += row['variants'].split(",");
+					dict_features[feature_index]['variants'] += row['variants'].split(",");
 	
 	print("#4 Outputting feature haplotype counts...");	
 	
