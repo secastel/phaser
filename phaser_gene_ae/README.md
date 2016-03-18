@@ -13,10 +13,13 @@ Requires phASER to have been run with a phased VCF as input with unphased_vars e
 #Arguments
 ##Required
 * **--haplotypic_counts** - Output file from phASER containing read counts for haplotype blocks.
-* **--gw_cutoff** _(0.9)_ - Minimum genome wide phase confidence for phASER haplotype blocks.
 * **--features** - File in BED format (0 BASED COORDINATES - chr,start,stop,name) containing the features to produce counts for.
-* **--min_cov** - Minimum total coverage for a feature to be outputted.
 * **--o** - Output file.
+
+##Optional
+* **--min_cov** _(1)_ - Minimum total coverage for a feature to be outputted.
+* **--gw_cutoff** _(0.9)_ - Minimum genome wide phase confidence for phASER haplotype blocks.
+* **--no_gw_phase** _(0.9)_ - Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved (IE which haplotype A/B is arbitrary and inconsistent between genes).
 
 #Output File
 
