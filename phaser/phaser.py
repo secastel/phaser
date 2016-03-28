@@ -1238,82 +1238,83 @@ def write_vcf():
 			id = vcf_columns[2];
 			chrom = vcf_columns[0];
 			pos = int(vcf_columns[1]);
-	
-			if "GT" in vcf_columns[8]:
-				gt_index = vcf_columns[8].split(":").index("GT");
-				genotype = list(vcf_columns[sample_column].split(":")[gt_index]);
-				
-				if "|" in genotype: genotype.remove("|");
-				if "/" in genotype: genotype.remove("/");
 			
-				# get only the alleles this individual has
-				alt_alleles = vcf_columns[4].split(",");
-				all_alleles = [vcf_columns[3]] + alt_alleles;
-				ind_alleles = [];
+			if args.chr == "" or chrom == args.chr:
+				if "GT" in vcf_columns[8]:
+					gt_index = vcf_columns[8].split(":").index("GT");
+					genotype = list(vcf_columns[sample_column].split(":")[gt_index]);
+				
+					if "|" in genotype: genotype.remove("|");
+					if "/" in genotype: genotype.remove("/");
+			
+					# get only the alleles this individual has
+					alt_alleles = vcf_columns[4].split(",");
+					all_alleles = [vcf_columns[3]] + alt_alleles;
+					ind_alleles = [];
 
-				for i in range(0,len(all_alleles)):
-					if str(i) in genotype:
-						ind_alleles.append(all_alleles[i]);
+					for i in range(0,len(all_alleles)):
+						if str(i) in genotype:
+							ind_alleles.append(all_alleles[i]);
 				
-				# make sure there are as many entries in each sample as there should be before adding new columns
-				# if there are entries missing add blanks
-				n_fields = len(vcf_columns[8].split(":"));
-				for i in range(9, len(vcf_columns)):
-					sample_fields = len(vcf_columns[i].split(":"));
-					if sample_fields != n_fields:
-						missing_cols = n_fields - sample_fields;
-						vcf_columns[i] += ":" * missing_cols;
+					# make sure there are as many entries in each sample as there should be before adding new columns
+					# if there are entries missing add blanks
+					n_fields = len(vcf_columns[8].split(":"));
+					for i in range(9, len(vcf_columns)):
+						sample_fields = len(vcf_columns[i].split(":"));
+						if sample_fields != n_fields:
+							missing_cols = n_fields - sample_fields;
+							vcf_columns[i] += ":" * missing_cols;
 				
-				vcf_columns[8] += ":PG:PB:PI:PW:PC";
+					vcf_columns[8] += ":PG:PB:PI:PW:PC";
 			
-				#generate a unique id
-				unique_id = chrom+"_"+str(pos)+"_"+("_".join(all_alleles));
+					#generate a unique id
+					unique_id = chrom+"_"+str(pos)+"_"+("_".join(all_alleles));
 					
-				if unique_id in set_phased_vars:					
-					# retrieve the correct allele number of each allele
-					# issue because if a site is multi-allelic it will be converted to 0/1 (ie 0/2 converted to 0/1)
-					alleles_out = [];
-					gw_phase_out = ["",""];
-					block_index = haplotype_lookup[unique_id][2];
+					if unique_id in set_phased_vars:					
+						# retrieve the correct allele number of each allele
+						# issue because if a site is multi-allelic it will be converted to 0/1 (ie 0/2 converted to 0/1)
+						alleles_out = [];
+						gw_phase_out = ["",""];
+						block_index = haplotype_lookup[unique_id][2];
 					
-					for allele in haplotype_lookup[unique_id][1].split("|"):
-						allele_base = dict_variant_reads[unique_id]['alleles'][int(allele)];
-						vcf_allele_index = all_alleles.index(allele_base);
+						for allele in haplotype_lookup[unique_id][1].split("|"):
+							allele_base = dict_variant_reads[unique_id]['alleles'][int(allele)];
+							vcf_allele_index = all_alleles.index(allele_base);
 						
-						# get the genome wide phase
-						gw_phase = dict_variant_reads[unique_id]['gw_phase'][int(allele)]
-						if isinstance(gw_phase, int) == True:
-							gw_phase_out[gw_phase] = str(vcf_allele_index);
+							# get the genome wide phase
+							gw_phase = dict_variant_reads[unique_id]['gw_phase'][int(allele)]
+							if isinstance(gw_phase, int) == True:
+								gw_phase_out[gw_phase] = str(vcf_allele_index);
 							
-						alleles_out.append(str(vcf_allele_index));
+							alleles_out.append(str(vcf_allele_index));
 					
-					# get rsID for each of the variants on the haplotype
-					variants_out = [];
-					for variant in haplotype_lookup[unique_id][0]:
-						variants_out.append(dict_variant_reads[variant]['rsid']);
-					# get the p-value, if there was one for the block
-					# pval = haplotype_pvalue_lookup[list_to_string(haplotype_lookup[unique_id][0])];
-					gw_stat = haplotype_gw_stat_lookup[list_to_string(haplotype_lookup[unique_id][0])];
+						# get rsID for each of the variants on the haplotype
+						variants_out = [];
+						for variant in haplotype_lookup[unique_id][0]:
+							variants_out.append(dict_variant_reads[variant]['rsid']);
+						# get the p-value, if there was one for the block
+						# pval = haplotype_pvalue_lookup[list_to_string(haplotype_lookup[unique_id][0])];
+						gw_stat = haplotype_gw_stat_lookup[list_to_string(haplotype_lookup[unique_id][0])];
 					
-					# if desired to overwrite input phase with GW phase, do it here
-					if args.gw_phase_vcf == 1 and gw_stat >= args.gw_phase_vcf_min_confidence:
-						if "-" not in gw_phase_out:
-							xfields = vcf_columns[sample_column].split(":");
-							new_phase = "|".join(gw_phase_out);
-							if xfields[gt_index] != new_phase: phase_corrections += 1;
-							xfields[gt_index] = new_phase;
-							vcf_columns[sample_column] = ":".join(xfields);
+						# if desired to overwrite input phase with GW phase, do it here
+						if args.gw_phase_vcf == 1 and gw_stat >= args.gw_phase_vcf_min_confidence:
+							if "-" not in gw_phase_out:
+								xfields = vcf_columns[sample_column].split(":");
+								new_phase = "|".join(gw_phase_out);
+								if xfields[gt_index] != new_phase: phase_corrections += 1;
+								xfields[gt_index] = new_phase;
+								vcf_columns[sample_column] = ":".join(xfields);
 						
-					vcf_columns[sample_column] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat);
-				else:
-					vcf_columns[sample_column] += ":"+"/".join(sorted(genotype))+":.:.:"+vcf_columns[sample_column].split(":")[gt_index]+":."
+						vcf_columns[sample_column] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat);
+					else:
+						vcf_columns[sample_column] += ":"+"/".join(sorted(genotype))+":.:.:"+vcf_columns[sample_column].split(":")[gt_index]+":."
 				
-			# update other samples, that phaser was not run on, with blank values
-			for i in range(9,len(vcf_columns)):
-				if i != sample_column:
-					vcf_columns[i] += ":.:.:.:.:.";
+				# update other samples, that phaser was not run on, with blank values
+				for i in range(9,len(vcf_columns)):
+					if i != sample_column:
+						vcf_columns[i] += ":.:.:.:.:.";
 			
-			vcf_out.write("\t".join(vcf_columns)+"\n");
+				vcf_out.write("\t".join(vcf_columns)+"\n");
 					
 	vcf_out.close();
 	
