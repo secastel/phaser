@@ -1882,7 +1882,9 @@ def annotation_to_dict(text,sep=";"):
 		if "=" in var:
 			key = var.split("=")[0];
 			values = var.split("=")[1];
-		dict_out[key] = values;
+			dict_out[key] = values;
+	if len(dict_out) == 0:
+		raise RuntimeError("The VCF input file does not contain '=' separated information in the INFO (8th) column.") 
 	return(dict_out);
 								
 if __name__ == "__main__":
