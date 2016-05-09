@@ -41,6 +41,7 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--o** - Output file prefix name.
 
 #Optional
+* **--python_string** _(python2.7)_ - Command to use when calling python, required for running read variant mapping script.
 * **--haplo_count_bam** _()_ - Comma separated list of BAMs to use when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank will use all libraries for counts, otherwise will only use the libraries specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...
 * **--haplo_count_blacklist** _()_ - BED file containing genomic intervals to be excluded from haplotypic counts. Reads from any variants which lie within these regions will not be counted for haplotypic counts. This will not affect phasing.
 * **--cc_threshold** _(0.01)_ - Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration p-value lower than this threshold will be removed.
@@ -67,8 +68,6 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 ##Performance Related
 * **--threads** _(1)_ - Maximum number of threads to use. Note the maximum thread count for some tasks is bounded by the data (for example 1 thread per contig for haplotype construction).
 * **--max_block_size** _(15)_ - Maximum number of variants to phase at once. Number of haplotypes tested = 2 ^ # variants in block. Blocks larger than this will be split into sub blocks, phased, and then the best scoring sub blocks will be phased with each other.
-* **--reads_mem** _(0)_ - Store reads that overlap variants in memory (0,1). NOTE: storing reads in memory increases speed, but grealtly increases memory overhead.
-* **--vcf_mem** _(1)_ - Store the entire VCF into memory for quick processing (0,1). Should not be used with large, multisample VCF files.
 * **--temp_dir** _()_ - Location of temporary directory to use for storing files. If left blank will default to system temp dir. NOTE: potentially large files will be stored in this directory, so please ensure there is sufficient free space.
 * **--max_items_per_thread** _(100,000)_ - Maximum number of items that can be assigned to a single thread to process. NOTE: if this number is too high Python will stall when trying to join the pools.
 
@@ -78,7 +77,6 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--chr** _()_ - Restrict haplotype phasing to a specific chromosome.
 * **--unique_ids** _(0)_ - Generate and output unique IDs instead of those provided in the VCF (0,1). NOTE: this should be used if your VCF does not contain a unique ID for each variant.
 * **--output_network** _()_ - Output the haplotype connection network for the given variant.
-* **--only_phased** _(0)_ - Only use variants in the input VCF which were marked as phased (0,1).
 
 #Output Files
 
@@ -96,8 +94,8 @@ Contains all haplotypes phased along with detailed phasing statistics.
 * 8 - **reads_hap_a** - Number of unique reads mapping to haplotype A.
 * 9 - **reads_hap_b** - Number of unique reads mapping to haplotype B.
 * 10 - **reads_total** - Total number of unique reads covering this haplotype (reads_hap_a + reads_hap_b).
-* 11 - **connections_supporting** - Number of variant connections (1 connection = 1 read spanning 2 variants) which support the chosen haplotype.
-* 12 - **connections_total** - Total number of variant connections observed for this haplotype.
+* 11 - **edges_supporting** - Number of allele edges which support the chosen haplotype.
+* 12 - **edges_total** - Total number of allele edges observed for this haplotype.
 * 13 - **annotated_phase** - If input VCF contained phasing information, this will give the annotated phase for each haplotype separated by "|".
 * 14 - **phase_concordant** - The phase is concordant with the input VCF annotation if each of the variants on a given haplotype the same annotated phase (in annotated_phase).
 * 15 - **gw_phase** - Genome wide phasing for the alleles. The method for determing the genome wide phase is specified by --gw_phase_method. The phase will be outputted in the GT field of the VCF if --gw_phase_vcf = 1.
