@@ -74,6 +74,7 @@ def main():
 	parser.add_argument("--debug", type=int, default=0, help="Show debug mode messages (0,1).")
 	parser.add_argument("--chr", default="", help="Restrict haplotype phasing to a specific chromosome.")
 	parser.add_argument("--unique_ids", type=int, default=0, help="Generate and output unique IDs instead of those provided in the VCF (0,1). NOTE: this should be used if your VCF does not contain a unique ID for each variant.")
+	parser.add_argument("--id_separator", default="_", help="Separator to use when generating unique IDs. Must not be found in contig name, and cannot include ':'.")
 	parser.add_argument("--output_network", default="", help="Output the haplotype connection network for the given variant.")
 	
 	global args;
@@ -87,6 +88,9 @@ def main():
 	fun_flush_print("  Author: Stephane Castel (scastel@nygenome.org)")
 	fun_flush_print("##################################################");
 	fun_flush_print("");
+	
+	if args.id_separator == ":": fatal_error("ID separator must not be ':'. Please choose another separator that is not found in the contig names.");
+	contig_ban = [args.id_separator, ":"];
 	
 	if args.temp_dir != "":
 		tempfile.tempdir = args.temp_dir;
@@ -181,7 +185,7 @@ def main():
 	
 	fun_flush_print("     creating variant mapping table...");
 	if args.chr != "":
-		fun_flush_print("          restricting to chromosome %s..."%(args.chr));
+		fun_flush_print("          restricting to chromosome '%s'..."%(args.chr));
 	global sample_column;
 	sample_column = -1;
 	gt_index = -1;
@@ -206,6 +210,8 @@ def main():
 				#1       10177   .       A       AC      100     PASS    AC=2130;AF=0.425319;AN=5008;NS=2504;DP=103152;EAS_AF=0.3363;AMR_AF=0.3602;AFR_AF=0.4909;EUR_AF=0.4056;SAS_AF=0.4949;AA=|||unknown(NO_COVERAGE)  GT      1|0
 				unphased = False;
 				chr = vcf_columns[0];
+				for item in contig_ban:
+					if item in chr: fatal_error("Character '%s' must not be present in contig name. Please change id separtor using --id_separator to a character not found in the contig names and try again."%(item));
 				filter = vcf_columns[6];
 				if args.chr == "" or args.chr == chr:
 					if chr not in chromosome_pool: chromosome_pool[chr] = [];
@@ -560,7 +566,7 @@ def main():
 		variant_connections = {};
 		allele_connections = {};
 		for variant in block:
-			chr = variant.split("_")[0];
+			chr = variant.split(args.id_separator)[0];
 			if variant in dict_variant_overlap[chr]: variant_connections[variant] = dict_variant_overlap[chr][variant];
 			if variant+":0" in dict_allele_connections: allele_connections[variant+":0"] = dict_allele_connections[variant+":0"]
 			if variant+":1" in dict_allele_connections: allele_connections[variant+":1"] = dict_allele_connections[variant+":1"]
@@ -926,10 +932,7 @@ def main():
 			else:
 				blacklist = [];
 
-			if len(blacklist) == 0:
-				allele = dict_var['alleles'][int(hap_x[var_index])];
-				allele_index = dict_var['alleles'].index(allele);
-				
+			if len(blacklist) == 0:				
 				if len(haplo_count_bam_indices) == 0:
 					# if no BAM has been selected for haplo counts just use the sum across all BAMs
 					hap_a_count = len(dict_var['read_set'][0]);
@@ -1026,7 +1029,7 @@ def process_mapping_result(input):
 		if use_as_cutoff == False or int(fields[4]) >= as_cutoff:
 			read_id = fields[0];
 			var_id = fields[1];
-			chrom = var_id.split("_")[0];
+			chrom = var_id.split(args.id_separator)[0];
 			# add to the quick lookup dictionary
 			if read_id not in read_vars: read_vars[read_id] = [];
 			read_vars[read_id].append(var_id);
@@ -1081,7 +1084,7 @@ def generate_mapping_table(input):
 		rs_id = vcf_columns[2];
 		alt_alleles = vcf_columns[4].split(",");
 		all_alleles = [vcf_columns[3]] + alt_alleles;
-		unique_id = chrom+"_"+pos+"_"+("_".join(all_alleles));
+		unique_id = chrom+args.id_separator+pos+args.id_separator+(args.id_separator.join(all_alleles));
 		
 		geno_string = vcf_columns[9];
 		genotype = vcf_columns[10];
@@ -1119,7 +1122,7 @@ def return_script_path():
     
 def generate_variant_dict(fields):
 	#read_name	variant_id	rs_id	read_allele	alignment_score	genotype	maf
-	id_split = fields[1].split("_");
+	id_split = fields[1].split(args.id_separator);
 	all_alleles = id_split[2:len(id_split)];
 	
 	genotype = list(fields[5]);
@@ -1426,7 +1429,7 @@ def write_vcf():
 					vcf_columns[8] += ":PG:PB:PI:PW:PC";
 			
 					#generate a unique id
-					unique_id = chrom+"_"+str(pos)+"_"+("_".join(all_alleles));
+					unique_id = chrom+args.id_separator+str(pos)+args.id_separator+(args.id_separator.join(all_alleles));
 					
 					if unique_id in set_phased_vars:					
 						# retrieve the correct allele number of each allele
@@ -1512,9 +1515,9 @@ def build_haplotypes(input):
 	return(block_haplotypes);
 
 def sort_var_ids(ids):
-	xsplit = [x.split("_") for x in ids];
+	xsplit = [x.split(args.id_separator) for x in ids];
 	xsort = sorted(xsplit, key = lambda x: (x[0], int(x[1])))
-	return(["_".join(x) for x in xsort]);
+	return([args.id_separator.join(x) for x in xsort]);
 
 def count_hap_junctions(block):
 	counted = set([]);
@@ -1792,7 +1795,7 @@ def phase_v3(input):
 		for allele in block[0]:
 			out_block.append(variants[variant_index]+":"+allele)
 			variant_index += 1;
-		if "-" not in out_block[0]:
+		if "-" not in out_block[0].split(":")[0]:
 			out_phase.append(out_block);
 		
 	return(out_phase);
