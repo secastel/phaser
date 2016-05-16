@@ -89,7 +89,7 @@ def main():
 	fun_flush_print("##################################################");
 	fun_flush_print("");
 	
-	if args.id_separator == ":": fatal_error("ID separator must not be ':'. Please choose another separator that is not found in the contig names.");
+	if args.id_separator == ":" or args.id_separator == "": fatal_error("ID separator must not be ':' or blank. Please choose another separator that is not found in the contig names.");
 	contig_ban = [args.id_separator, ":"];
 	
 	if args.temp_dir != "":
@@ -1795,7 +1795,7 @@ def phase_v3(input):
 		for allele in block[0]:
 			out_block.append(variants[variant_index]+":"+allele)
 			variant_index += 1;
-		if "-" not in out_block[0].split(":")[0]:
+		if "-" not in out_block[0].split(":")[1]:
 			out_phase.append(out_block);
 		
 	return(out_phase);
