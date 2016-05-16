@@ -76,6 +76,7 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--debug** _(0)_ - Show debug mode messages (0,1).
 * **--chr** _()_ - Restrict haplotype phasing to a specific chromosome.
 * **--unique_ids** _(0)_ - Generate and output unique IDs instead of those provided in the VCF (0,1). NOTE: this should be used if your VCF does not contain a unique ID for each variant.
+* **--id_separator** ('\_') - Separator to use when generating unique IDs. Must not be found in contig name, and cannot include ':'.
 * **--output_network** _()_ - Output the haplotype connection network for the given variant.
 
 #Output Files
