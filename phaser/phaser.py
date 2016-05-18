@@ -38,6 +38,7 @@ def main():
 	parser.add_argument("--sample", help="Sample name in VCF", required = True)
 	parser.add_argument("--mapq", help="Minimum MAPQ for reads to be used for phasing. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.", required = True)
 	parser.add_argument("--baseq", type=int, help="Minimum baseq for bases to be used for phasing", required = True)
+	parser.add_argument("--paired_end", type=int, help="Sequencing data comes from a paired end assay (0,1). If set to true phASER will require all reads to have the 'read mapped in proper pair' flag.", required = True)
 	parser.add_argument("--o", help="Out prefix",required = True)
 	
 	# optional
@@ -81,7 +82,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.5";
+	version = "0.6";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -290,9 +291,9 @@ def main():
 	samtools_arg = "";
 	# remove dups if necessary, and only include properly paired read (ie in correct orientation)
 	if args.remove_dups == 1:
-		samtools_arg = "-F 0x400 -f 2"
-	else:
-		samtools_arg = "-f 2"
+		samtools_arg += "-F 0x400 "
+	if args.paired_end == 1:
+		samtools_arg += "-f 2"
 	
 	global dict_variant_reads;
 	dict_variant_reads = {};
@@ -983,11 +984,11 @@ def main():
 	total_time = time.time() - start_time;
 	
 	fun_flush_print("COMPLETED using %d reads in %d seconds using %d threads"%(total_reads,total_time,args.threads));
-	fun_flush_print("     PHASED  %d of %d all variants (= %f)"%(len(all_variants),het_count,float(len(all_variants))/float(het_count)));
+	fun_flush_print("     PHASED  %d of %d all variants (= %f) with at least one other variant"%(len(all_variants),het_count,float(len(all_variants))/float(het_count)));
 	if args.write_vcf == 1:
 		if unphased_count > 0:
-			fun_flush_print("     PHASED  %d of %d unphased variants (= %f)"%(unphased_phased,unphased_count,float(unphased_phased)/float(unphased_count)));
-		fun_flush_print("     PHASE CORRECTED  %d of %d variants (= %f)"%(phase_corrected,het_count,float(phase_corrected)/float(het_count)));
+			fun_flush_print("     GENOME WIDE PHASED  %d of %d unphased variants (= %f)"%(unphased_phased,unphased_count,float(unphased_phased)/float(unphased_count)));
+		fun_flush_print("     GENOME WIDE PHASE CORRECTED  %d of %d variants (= %f)"%(phase_corrected,het_count,float(phase_corrected)/float(het_count)));
 				
 def generate_connectivity_map(chrom):
 	global read_vars;
