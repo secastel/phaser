@@ -17,6 +17,10 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 * VCF: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz
 * BAM: ftp://ftp.nygenome.org/sec/phaser/NA06986.2.M_111215_4.bam
 
+Run command:
+
+python2.7 phaser.py --vcf NA06986.vcf.gz --bam NA06986.2.M_111215_4.bam --paired_end 1 --mapq 255 --baseq 10 --sample NA06986 --o phaser_test_case
+
 **Useful files**
 
 We suggest that you exclude variants in HLA genes using the "--blacklist" argument becuase of the high mapping error rate in these genes. A file containing coordinates for hg19 is included here for convenience:
@@ -38,6 +42,7 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--sample** - Name of sample to use in VCF file.
 * **--baseq** - Minimum base quality at the SNP required for reads to be counted.
 * **--mapq** - Mimimum mapping quality for reads to be counted. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.
+* **--paired_end** - Sequencing data comes from a paired end assay (0,1). If set to true phASER will require all reads to have the 'read mapped in proper pair' flag.
 * **--o** - Output file prefix name.
 
 #Optional
