@@ -67,7 +67,9 @@ def main():
 							as_column = i;
 				else:
 					alignment_score = int(read_columns[as_column].split(":")[2]);
-					
+				
+				#Set as_column back to initial value, in case not all reads have equal number fields
+				as_column = -1;
 		
 				# BAM and variant not on same chromosome
 				if line_variant != None:
