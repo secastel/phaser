@@ -1065,7 +1065,10 @@ def call_mapping_script(input):
 	mapping_result = tempfile.NamedTemporaryFile(delete=False);
 	mapping_result.close();
 	
-	subprocess.call("samtools view -h "+bam+" "+chrom+": | samtools view -Sh "+samtools_arg+" -L "+bed_out+" -q "+mapq+" - | "+args.python_string+" "+return_script_path()+"/read_variant_map.py --baseq "+str(args.baseq)+" --splice 1 --isize_cutoff "+str(isize)+" --variant_table "+mapper_out+" --o "+mapping_result.name, stderr=devnull, stdout=devnull, shell=True);
+	#Save error code from subprocess if not 0, file it writes is truncated and gives unexpected wrong results.
+	error_code = subprocess.call("samtools view -h "+bam+" "+chrom+": | samtools view -Sh "+samtools_arg+" -L "+bed_out+" -q "+mapq+" - | "+args.python_string+" "+return_script_path()+"/read_variant_map.py --baseq "+str(args.baseq)+" --splice 1 --isize_cutoff "+str(isize)+" --variant_table "+mapper_out+" --o "+mapping_result.name, stderr=devnull, stdout=devnull, shell=True);
+	if error_code != 0:
+		raise RuntimeError("subprocess.call of read_variant_map.py exited with an error")
 		
 	fun_flush_print("               completed chromosome %s..."%(chrom));
 	return(mapping_result.name);
