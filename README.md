@@ -5,7 +5,7 @@ Performs haplotype phasing using read alignments in BAM format from both DNA and
 
 Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
-Please see our preprint on [bioRxiv](http://biorxiv.org/content/early/2016/02/12/039529) for details and benchmarking of the method.
+Please see our preprint on [bioRxiv](http://biorxiv.org/content/early/2016/06/03/039529) for details and benchmarking of the method.
 
 phASER is made available under the [GNU GENERAL PUBLIC LICENSE v3](https://github.com/secastel/phaser/tree/master/LICENSE).
 
