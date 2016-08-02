@@ -147,7 +147,7 @@ def main():
 		if os.path.isfile(args.gw_af_vcf) == True:
 			vcf_af = vcf.Reader(filename=args.gw_af_vcf);
 		else:
-			fatal_error("Allele frequency VCF (--gw_af_vcf) specified does not exit.");
+			fatal_error("Allele frequency VCF (--gw_af_vcf) specified does not exist.");
 		
 	
 	fun_flush_print("#1. Loading heterozygous variants into intervals...");
