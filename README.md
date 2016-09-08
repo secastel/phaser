@@ -1,7 +1,7 @@
 # phASER
 **ph**asing and **A**llele **S**pecific **E**xpression from **R**NA-seq
 
-Performs haplotype phasing using read alignments in BAM format from both DNA and RNA based assays.
+Performs haplotype phasing using read alignments in BAM format from both DNA and RNA based assays, and provides measures of haplotypic expression for RNA based assays.
 
 Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
