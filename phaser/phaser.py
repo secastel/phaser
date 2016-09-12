@@ -61,7 +61,7 @@ def main():
 	parser.add_argument("--gw_phase_method", type=int, default=0, help="Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.")
 	parser.add_argument("--gw_af_vcf", default="", help="VCF with allele frequencies from the population which was used to do the phasing. If left blank it will look for an allele frequency in the input VCF (--vcf).")
 	parser.add_argument("--gw_af_field", default="AF", help="Field from --gw_af_vcf to use for allele frequency.")
-	parser.add_argument("--gw_phase_vcf", type=int, default=0, help="Replace GT field of output VCF using phASER genome wide phase (0,1). See --gw_phase_method for options.")
+	parser.add_argument("--gw_phase_vcf", type=int, default=0, help="Replace GT field of output VCF using phASER genome wide phase. 0: do not replace; 1: replace when gw_confidence >= --gw_phase_vcf_min_confidence; 2: as in (1), but in addition replace with haplotype block phase when gw_confidence < --gw_phase_vcf_min_confidence and include PS field. See --gw_phase_method for options.")
 	parser.add_argument("--gw_phase_vcf_min_confidence", type=float, default=0.90, help="If replacing GT field in VCF only replace when phASER haplotype gw_confidence >= this value.")
 	
 	# performance
@@ -82,7 +82,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.6";
+	version = "0.7";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1363,6 +1363,8 @@ def write_vcf():
 	
 	if args.gw_phase_vcf == 1:
 		fun_flush_print("     GT field is being updated with phASER genome wide phase when applicable. This can be changed using the --gw_phase_vcf argument.");
+	elif args.gw_phase_vcf == 2:
+		fun_flush_print("     GT field is being updated with either phASER genome wide phase or phASER block phase with PS specified, depending on phase anchoring quality.");
 	else:
 		fun_flush_print("     GT field is not being updated with phASER genome wide phase. This can be changed using the --gw_phase_vcf argument.");
 	
@@ -1431,7 +1433,7 @@ def write_vcf():
 							vcf_columns[i] += ":" * missing_cols;
 				
 					vcf_columns[8] += ":PG:PB:PI:PW:PC";
-			
+					
 					#generate a unique id
 					unique_id = chrom+args.id_separator+str(pos)+args.id_separator+(args.id_separator.join(all_alleles));
 					
@@ -1465,16 +1467,23 @@ def write_vcf():
 						if "-" not in gw_phase_out:
 							xfields = vcf_columns[sample_column].split(":");
 							new_phase = "|".join(gw_phase_out);
-							
 							if gw_stat >= args.gw_phase_vcf_min_confidence:
 								if "|" in xfields[gt_index] and xfields[gt_index] != new_phase: phase_corrections += 1;
 								if "/" in xfields[gt_index] and xfields[gt_index] != new_phase: unphased_phased += 1;
-							
-								if args.gw_phase_vcf == 1:
+								
+								if args.gw_phase_vcf == 1 or args.gw_phase_vcf == 2:
 									xfields[gt_index] = new_phase;
 									vcf_columns[sample_column] = ":".join(xfields);
+							
+							if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
+								xfields[gt_index] = "|".join(alleles_out);
+								vcf_columns[sample_column] = ":".join(xfields);
 						
-						vcf_columns[sample_column] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat);
+						if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
+							vcf_columns[8] += ":PS";
+							vcf_columns[sample_column] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat)+":"+str(block_index);
+						else:
+							vcf_columns[sample_column] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat);
 					else:
 						vcf_columns[sample_column] += ":"+"/".join(sorted(genotype))+":.:.:"+vcf_columns[sample_column].split(":")[gt_index]+":."
 				
@@ -1482,6 +1491,8 @@ def write_vcf():
 				for i in range(9,len(vcf_columns)):
 					if i != sample_column:
 						vcf_columns[i] += ":.:.:.:.:.";
+						if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
+							vcf_columns[i] += ":.";
 			
 				vcf_out.write("\t".join(vcf_columns)+"\n");
 					
