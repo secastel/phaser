@@ -67,7 +67,7 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.
 * **--gw_af_vcf** _()_ - VCF with allele frequencies from the population which was used to do the phasing. If left blank it will look for an allele frequency in the input VCF (--vcf).
 * **--gw_af_field** _('AF')_ - Field from --gw_af_vcf to use for allele frequency.
-* **--gw_phase_vcf** _(0)_ - Rephase GT field of output VCF using phASER genome wide phasing (0,1). See --gw_phase_method for options.
+* **--gw_phase_vcf** _(0)_ - Replace GT field of output VCF using phASER genome wide phase. 0: do not replace; 1: replace when gw_confidence >= --gw_phase_vcf_min_confidence; 2: as in (1), but in addition replace with haplotype block phase when gw_confidence < --gw_phase_vcf_min_confidence and include PS field. See --gw_phase_method for options.
 * **--gw_phase_vcf_min_confidence** _(0.90)_ - If replacing GT field in VCF only replace when phASER haplotype gw_confidence >= this value.
 
 ##Performance Related
