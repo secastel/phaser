@@ -62,7 +62,7 @@ def main():
 		
 				if as_column == -1:
 					for i in range(11,len(read_columns)):
-						if "AS:" in read_columns[i]:
+						if read_columns[i].startswith("AS:"):
 							alignment_score = int(read_columns[i].split(":")[2]);
 							as_column = i;
 				else:
