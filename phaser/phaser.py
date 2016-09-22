@@ -82,7 +82,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.7";
+	version = "0.8";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1099,13 +1099,16 @@ def generate_mapping_table(input):
 			if args.gw_af_field in info_fields:
 				# make sure to get the right index if multi-allelic site
 				afs = map(float, info_fields[args.gw_af_field].split(","));
-				use_afs = [];
-				for allele in list(genotype):
-					if allele != "." and int(allele) != 0:
-						use_afs.append(int(allele) - 1);
-				# if there are multiple alternative alleles use the lowest MAF
-				if len(use_afs) > 0:
-					maf = min([min([afs[x],1-afs[x]]) for x in use_afs]);
+				
+				# make sure that there are the same number of allele frequencies as alternative variants			
+				if len(afs) == len(alt_alleles):
+					use_afs = [];
+					for allele in list(genotype):
+						if allele != "." and int(allele) != 0:
+							use_afs.append(int(allele) - 1);
+					# if there are multiple alternative alleles use the lowest MAF
+					if len(use_afs) > 0:
+						maf = min([min([afs[x],1-afs[x]]) for x in use_afs]);
 	
 		max_allele_size = max([len(x) for x in all_alleles]);
 	
@@ -1398,7 +1401,11 @@ def write_vcf():
 			format_written = True;
 			
 		vcf_columns = line.replace("\n","").split("\t");
-		if line[0:1] == "#":
+		if line.startswith("#CHROM"):
+			# if multiple samples only output phased sample
+			out_cols = vcf_columns[0:9] + [vcf_columns[sample_column]];
+			vcf_out.write("\t".join(out_cols)+"\n");
+		elif line[0:1] == "#":
 			vcf_out.write(line);
 		else:
 			##CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  NA06986
@@ -1487,14 +1494,10 @@ def write_vcf():
 					else:
 						vcf_columns[sample_column] += ":"+"/".join(sorted(genotype))+":.:.:"+vcf_columns[sample_column].split(":")[gt_index]+":."
 				
-				# update other samples, that phaser was not run on, with blank values
-				for i in range(9,len(vcf_columns)):
-					if i != sample_column:
-						vcf_columns[i] += ":.:.:.:.:.";
-						if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
-							vcf_columns[i] += ":.";
-			
-				vcf_out.write("\t".join(vcf_columns)+"\n");
+				# if VCF contains multiple samples, only output the phased sample
+				out_cols = vcf_columns[0:9] + [vcf_columns[sample_column]];
+				
+				vcf_out.write("\t".join(out_cols)+"\n");
 					
 	vcf_out.close();
 	
