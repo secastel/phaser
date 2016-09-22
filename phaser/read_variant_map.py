@@ -203,8 +203,8 @@ def split_read(alignment_pos, bases,baseqs,cigar, read_id):
 				number_build += c;
 			else:
 				seq_len = int(number_build);
-				if c == "M":
-					#match
+				if c == "M" or c == "X" or c == "=":
+					#alignment
 					pseudo_read += bases[read_pos:read_pos+seq_len];
 					read_pos += seq_len;
 					aligned_bases += seq_len;
@@ -227,8 +227,9 @@ def split_read(alignment_pos, bases,baseqs,cigar, read_id):
 					#insertion
 					insertions[genome_pos] = bases[read_pos:read_pos+seq_len];
 					read_pos += seq_len;
-				elif c == "S":
-					#softclip, reads not used in alignment
+					
+				elif c == "S" or c == "H":
+					#clipped, not used in alignment
 					read_pos += seq_len;
 			
 				number_build = "";
