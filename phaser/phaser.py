@@ -34,7 +34,7 @@ def main():
 	parser = argparse.ArgumentParser()
 	# required
 	parser.add_argument("--bam", help="Indexed BAMs (comma separated) containing aligned reads", required = True)
-	parser.add_argument("--vcf", help="VCF for sample", required = True)
+	parser.add_argument("--vcf", help="VCF for sample, must be gzipped and tabix indexed.", required = True)
 	parser.add_argument("--sample", help="Sample name in VCF", required = True)
 	parser.add_argument("--mapq", help="Minimum MAPQ for reads to be used for phasing. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.", required = True)
 	parser.add_argument("--baseq", type=int, help="Minimum baseq for bases to be used for phasing", required = True)
@@ -82,7 +82,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.8";
+	version = "0.9";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -100,6 +100,13 @@ def main():
 	devnull = open(os.devnull, 'w')
 	
 	# check that all passed files actually exist
+	if os.path.isfile(args.vcf) == False:
+		fatal_error("VCF file does not exist.");
+	elif os.path.isfile(args.vcf+".tbi") == False:
+		fatal_error("VCF file is not tabix indexed.");
+	if args.vcf.endswith(".gz") == False and args.vcf.endswith(".bgz") == False:
+		fatal_error("VCF must be gzipped.");
+		
 	check_files = args.bam.split(",");
 	for xfile in check_files:
 		if xfile != "":
@@ -152,28 +159,41 @@ def main():
 	
 	fun_flush_print("#1. Loading heterozygous variants into intervals...");
 	
-	# filter VCF if necessary
-	# decompress for intersection
-	remove_vcf = False;
+	# check to ensure sample is found in VCF
 	
-	if args.blacklist != "":
-		fun_flush_print("     removing blacklisted variants...");
-		vcf_out = tempfile.NamedTemporaryFile(delete=False);
-		vcf_out.close();
-		subprocess.call("bedtools intersect -header -v -a "+args.vcf+" -b "+args.blacklist+" > "+vcf_out.name,shell=True,stderr=devnull);
-		vcf_path = vcf_out.name;
-		remove_vcf = True;
-	elif ".gz" in args.vcf:
-		fun_flush_print("     decompressing VCF...");
-		vcf_out = tempfile.NamedTemporaryFile(delete=False);
-		vcf_out.close();
-		subprocess.call("gunzip -c "+args.vcf+" > "+vcf_out.name,shell=True);
-		vcf_path = vcf_out.name;
-		remove_vcf = True;
+	map_sample_column = sample_column_map(args.vcf);
+	
+	global sample_column;
+	
+	if args.sample in map_sample_column:
+		sample_column = map_sample_column[args.sample];
 	else:
-		vcf_path = args.vcf;
+		fatal_error("Sample not found in VCF.");
 	
+	# filter blacklisted variants if necessary, cut only sample column, filter for heterozygous sites
+	# decompress for intersection
 	
+	if args.chr != "":
+		decomp_str = "tabix -h "+args.vcf+" "+args.chr+":"
+	else:
+		decomp_str = "gunzip -c "+args.vcf;
+	
+	vcf_out = tempfile.NamedTemporaryFile(delete=False);
+	vcf_out.close();
+	vcf_path = vcf_out.name;
+		
+	if args.blacklist != "":
+		fun_flush_print("     removing blacklisted variants and processing VCF...");
+		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep '^#\|0|1\|1|0\|0/1' | bedtools intersect -v -a stdin -b "+args.blacklist+" > "+vcf_out.name;
+		error_code = subprocess.call(call_str,shell=True,stderr=devnull);
+	else:
+		fun_flush_print("     processing VCF...");
+		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep '0|1\|1|0\|0/1' > "+vcf_out.name;
+		error_code = subprocess.call(call_str,shell=True);
+	
+	if error_code != 0:
+		fatal_error("VCF filtering using subprocess.call \""+call_str+"\" exited with an error")
+		
 	## PARSE the VCF, put it into a format that can be used by the mapper
 	## one thread per chromosome
 	
@@ -187,57 +207,44 @@ def main():
 	fun_flush_print("     creating variant mapping table...");
 	if args.chr != "":
 		fun_flush_print("          restricting to chromosome '%s'..."%(args.chr));
-	global sample_column;
-	sample_column = -1;
+	
 	gt_index = -1;
 	
 	chromosome_pool = {};
 	filter_count = 0;
 	
 	for line in stream_vcf:
-		vcf_columns = line.replace("\n","").split("\t");
-		if line[0:6] == "#CHROM":
-			for i in range(len(vcf_columns)):
-				if vcf_columns[i] == args.sample:
-					sample_column = i;
-					break;
-			
-			if sample_column == -1:
-				fatal_error("Sample not found in VCF.");
-		elif line[0:1] != "#":
-			if sample_column == -1:
-				fatal_error("Sample not found in VCF.");
+		vcf_columns = line.rstrip().split("\t");
+		#1       10177   .       A       AC      100     PASS    AC=2130;AF=0.425319;AN=5008;NS=2504;DP=103152;EAS_AF=0.3363;AMR_AF=0.3602;AFR_AF=0.4909;EUR_AF=0.4056;SAS_AF=0.4949;AA=|||unknown(NO_COVERAGE)  GT      1|0
+		unphased = False;
+		chr = vcf_columns[0];
+		for item in contig_ban:
+			if item in chr: fatal_error("Character '%s' must not be present in contig name. Please change id separtor using --id_separator to a character not found in the contig names and try again."%(item));
+		filter = vcf_columns[6];
+		if args.chr == "" or args.chr == chr:
+			if chr not in chromosome_pool: chromosome_pool[chr] = [];
+			if gt_index == -1:
+				fields = vcf_columns[8].split(":");
+				if "GT" in fields:
+					gt_index = fields.index("GT");
+				else:
+					fatal_error("Genotype, defined by GT not found in input VCF.");
 			else:
-				#1       10177   .       A       AC      100     PASS    AC=2130;AF=0.425319;AN=5008;NS=2504;DP=103152;EAS_AF=0.3363;AMR_AF=0.3602;AFR_AF=0.4909;EUR_AF=0.4056;SAS_AF=0.4949;AA=|||unknown(NO_COVERAGE)  GT      1|0
-				unphased = False;
-				chr = vcf_columns[0];
-				for item in contig_ban:
-					if item in chr: fatal_error("Character '%s' must not be present in contig name. Please change id separtor using --id_separator to a character not found in the contig names and try again."%(item));
-				filter = vcf_columns[6];
-				if args.chr == "" or args.chr == chr:
-					if chr not in chromosome_pool: chromosome_pool[chr] = [];
-					if gt_index == -1:
-						fields = vcf_columns[8].split(":");
-						if "GT" in fields:
-							gt_index = fields.index("GT");
+				geno_string = vcf_columns[9].split(":")[gt_index];
+				xgeno = list(geno_string);
+				if "." not in xgeno:
+					if "|" in xgeno: xgeno.remove("|");
+					if "/" in xgeno:
+						xgeno.remove("/");
+						unphased = True;
+				
+					if len(set(xgeno)) > 1:
+						if args.pass_only == 0 or filter == "PASS":
+							chromosome_pool[chr].append(vcf_columns[0:9]+[geno_string,xgeno]);
+							if unphased == True:
+								unphased_count += 1;
 						else:
-							fatal_error("Genotype, defined by GT not found in input VCF.");
-					else:
-						geno_string = vcf_columns[sample_column].split(":")[gt_index];
-						xgeno = list(geno_string);
-						if "." not in xgeno:
-							if "|" in xgeno: xgeno.remove("|");
-							if "/" in xgeno:
-								xgeno.remove("/");
-								unphased = True;
-							
-							if len(set(xgeno)) > 1:
-								if args.pass_only == 0 or filter == "PASS":
-									chromosome_pool[chr].append(vcf_columns[0:9]+[geno_string,xgeno]);
-									if unphased == True:
-										unphased_count += 1;
-								else:
-									filter_count += 1;
+							filter_count += 1;
 	
 	stream_vcf.close();
 	bed_out.close();
@@ -374,8 +381,7 @@ def main():
 	for xfile in result_files:
 		os.remove(xfile);
 	
-	if remove_vcf == True:
-		os.remove(vcf_out.name);
+	os.remove(vcf_out.name);
 	fun_flush_print("#3. Identifying connected variants...");
 	fun_flush_print("     calculating sequencing noise level...");
 	
@@ -1371,13 +1377,18 @@ def write_vcf():
 	else:
 		fun_flush_print("     GT field is not being updated with phASER genome wide phase. This can be changed using the --gw_phase_vcf argument.");
 	
-
-	if ".gz" in args.vcf:
-		vcf_in = gzip.open(args.vcf,"r");
-		vcf_out = gzip.open(args.o+".vcf.gz","w");
+	if args.chr != "":
+		decomp_str = "tabix -h "+args.vcf+" "+args.chr+":"
 	else:
-		vcf_in = open(args.vcf,"r");
-		vcf_out = open(args.o+".vcf","w");
+		decomp_str = "gunzip -c "+args.vcf;
+	
+	tmp_out = tempfile.NamedTemporaryFile(delete=False);
+	tmp_out.close();
+		
+	subprocess.call(decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" > "+tmp_out.name,shell=True);
+		
+	vcf_in = open(tmp_out.name,"r");
+	vcf_out = gzip.open(args.o+".vcf.gz","w");
 	
 	phase_corrections = 0;
 	unphased_phased = 0;
@@ -1403,7 +1414,7 @@ def write_vcf():
 		vcf_columns = line.replace("\n","").split("\t");
 		if line.startswith("#CHROM"):
 			# if multiple samples only output phased sample
-			out_cols = vcf_columns[0:9] + [vcf_columns[sample_column]];
+			out_cols = vcf_columns[0:9] + [vcf_columns[9]];
 			vcf_out.write("\t".join(out_cols)+"\n");
 		elif line[0:1] == "#":
 			vcf_out.write(line);
@@ -1416,7 +1427,7 @@ def write_vcf():
 			if args.chr == "" or chrom == args.chr:
 				if "GT" in vcf_columns[8]:
 					gt_index = vcf_columns[8].split(":").index("GT");
-					genotype = list(vcf_columns[sample_column].split(":")[gt_index]);
+					genotype = list(vcf_columns[9].split(":")[gt_index]);
 				
 					if "|" in genotype: genotype.remove("|");
 					if "/" in genotype: genotype.remove("/");
@@ -1472,7 +1483,7 @@ def write_vcf():
 							
 						# if desired to overwrite input phase with GW phase, do it here
 						if "-" not in gw_phase_out:
-							xfields = vcf_columns[sample_column].split(":");
+							xfields = vcf_columns[9].split(":");
 							new_phase = "|".join(gw_phase_out);
 							if gw_stat >= args.gw_phase_vcf_min_confidence:
 								if "|" in xfields[gt_index] and xfields[gt_index] != new_phase: phase_corrections += 1;
@@ -1480,26 +1491,27 @@ def write_vcf():
 								
 								if args.gw_phase_vcf == 1 or args.gw_phase_vcf == 2:
 									xfields[gt_index] = new_phase;
-									vcf_columns[sample_column] = ":".join(xfields);
+									vcf_columns[9] = ":".join(xfields);
 							
 							if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
 								xfields[gt_index] = "|".join(alleles_out);
-								vcf_columns[sample_column] = ":".join(xfields);
+								vcf_columns[9] = ":".join(xfields);
 						
 						if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
 							vcf_columns[8] += ":PS";
-							vcf_columns[sample_column] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat)+":"+str(block_index);
+							vcf_columns[9] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat)+":"+str(block_index);
 						else:
-							vcf_columns[sample_column] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat);
+							vcf_columns[9] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat);
 					else:
-						vcf_columns[sample_column] += ":"+"/".join(sorted(genotype))+":.:.:"+vcf_columns[sample_column].split(":")[gt_index]+":."
+						vcf_columns[9] += ":"+"/".join(sorted(genotype))+":.:.:"+vcf_columns[9].split(":")[gt_index]+":."
 				
 				# if VCF contains multiple samples, only output the phased sample
-				out_cols = vcf_columns[0:9] + [vcf_columns[sample_column]];
+				out_cols = vcf_columns[0:9] + [vcf_columns[9]];
 				
 				vcf_out.write("\t".join(out_cols)+"\n");
 					
 	vcf_out.close();
+	os.remove(tmp_out.name);
 	
 	return([unphased_phased, phase_corrections]);
 	
@@ -1971,6 +1983,22 @@ def find_weak_points(variants, variant_connections):
 					dict_counts[position] += 1;
 	
 	return(dict_counts);
-			
+	
+def sample_column_map(path, start_col=9, line_key="#CHR"):
+	stream_in = gzip.open(path, "r");
+	
+	out_map = {};
+	for line in stream_in:
+		if line_key in line:
+			line = line.rstrip().split("\t");
+			for i in range(start_col,len(line)):
+				out_map[line[i]] = i;
+		
+			break;
+	
+	stream_in.close();
+	
+	return(out_map);
+				
 if __name__ == "__main__":
 	main();
