@@ -15,7 +15,9 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 
 1000 Genomes individual NA06986 with Phase 3 genotype data and Geuvadis RNA-Seq data.
 * VCF: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz
+* VCF Index: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz.tbi
 * BAM: ftp://ftp.nygenome.org/sec/phaser/NA06986.2.M_111215_4.bam
+* BAM Index: ftp://ftp.nygenome.org/sec/phaser/NA06986.2.M_111215_4.bam.bai
 
 Run command:
 
@@ -38,7 +40,7 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 #Arguments
 ##Required
 * **--bam** - Comma separated list of BAM files containing reads. Duplicates should be marked, and files should be indexed using samtools index.
-* **--vcf** - VCF file containing genotype for the sample. May be gzipped. Chromosome names must be consistent between BAM and VCF.
+* **--vcf** - VCF file containing genotype for the sample. Must be gzipped and indexed. Chromosome names must be consistent between BAM and VCF.
 * **--sample** - Name of sample to use in VCF file.
 * **--baseq** - Minimum base quality at the SNP required for reads to be counted.
 * **--mapq** - Mimimum mapping quality for reads to be counted. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.
