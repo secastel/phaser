@@ -228,10 +228,14 @@ def split_read(alignment_pos, bases,baseqs,cigar, read_id):
 					insertions[genome_pos] = bases[read_pos:read_pos+seq_len];
 					read_pos += seq_len;
 					
-				elif c == "S" or c == "H":
+				elif c == "S":
 					#clipped, not used in alignment
 					read_pos += seq_len;
-			
+
+				elif c == "H":
+					#hard-clipped, advance neither on read nor reference
+					pass
+
 				number_build = "";
 		alignments.append(alignment([genome_start,genome_pos,pseudo_read,insertions,alignment_pos,read_id]));
 	
