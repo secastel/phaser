@@ -82,7 +82,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9";
+	version = "0.9.1";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -215,36 +215,38 @@ def main():
 	
 	for line in stream_vcf:
 		vcf_columns = line.rstrip().split("\t");
-		#1       10177   .       A       AC      100     PASS    AC=2130;AF=0.425319;AN=5008;NS=2504;DP=103152;EAS_AF=0.3363;AMR_AF=0.3602;AFR_AF=0.4909;EUR_AF=0.4056;SAS_AF=0.4949;AA=|||unknown(NO_COVERAGE)  GT      1|0
-		unphased = False;
-		chr = vcf_columns[0];
-		for item in contig_ban:
-			if item in chr: fatal_error("Character '%s' must not be present in contig name. Please change id separtor using --id_separator to a character not found in the contig names and try again."%(item));
-		filter = vcf_columns[6];
-		if args.chr == "" or args.chr == chr:
-			if chr not in chromosome_pool: chromosome_pool[chr] = [];
-			if gt_index == -1:
-				fields = vcf_columns[8].split(":");
-				if "GT" in fields:
-					gt_index = fields.index("GT");
+		if line.startswith("#") == False:
+			#1       10177   .       A       AC      100     PASS    AC=2130;AF=0.425319;AN=5008;NS=2504;DP=103152;EAS_AF=0.3363;AMR_AF=0.3602;AFR_AF=0.4909;EUR_AF=0.4056;SAS_AF=0.4949;AA=|||unknown(NO_COVERAGE)  GT      1|0
+			unphased = False;
+			chr = vcf_columns[0];
+			for item in contig_ban:
+				if item in chr: fatal_error("Character '%s' must not be present in contig name. Please change id separtor using --id_separator to a character not found in the contig names and try again."%(item));
+			filter = vcf_columns[6];
+			if args.chr == "" or args.chr == chr:
+				if chr not in chromosome_pool: chromosome_pool[chr] = [];
+				if gt_index == -1:
+					fields = vcf_columns[8].split(":");
+					if "GT" in fields:
+						gt_index = fields.index("GT");
+					else:
+						fatal_error("Genotype, defined by GT not found in input VCF.");
 				else:
-					fatal_error("Genotype, defined by GT not found in input VCF.");
-			else:
-				geno_string = vcf_columns[9].split(":")[gt_index];
-				xgeno = list(geno_string);
-				if "." not in xgeno:
-					if "|" in xgeno: xgeno.remove("|");
-					if "/" in xgeno:
-						xgeno.remove("/");
-						unphased = True;
+					geno_string = vcf_columns[9].split(":")[gt_index];
+					xgeno = list(geno_string);
+					if "." not in xgeno:
+						if "|" in xgeno: xgeno.remove("|");
+						if "/" in xgeno:
+							xgeno.remove("/");
+							unphased = True;
 				
-					if len(set(xgeno)) > 1:
-						if args.pass_only == 0 or filter == "PASS":
-							chromosome_pool[chr].append(vcf_columns[0:9]+[geno_string,xgeno]);
-							if unphased == True:
-								unphased_count += 1;
-						else:
-							filter_count += 1;
+						if len(set(xgeno)) > 1:
+							filters = filter.split(";");
+							if args.pass_only == 0 or "PASS" in filters:
+								chromosome_pool[chr].append(vcf_columns[0:9]+[geno_string,xgeno]);
+								if unphased == True:
+									unphased_count += 1;
+							else:
+								filter_count += 1;
 	
 	stream_vcf.close();
 	bed_out.close();
@@ -1476,7 +1478,8 @@ def write_vcf():
 						# get rsID for each of the variants on the haplotype
 						variants_out = [];
 						for variant in haplotype_lookup[unique_id][0]:
-							variants_out.append(dict_variant_reads[variant]['rsid']);
+							# if ":" is in the rsid need to replace it, otherwise it will mess up output
+							variants_out.append(dict_variant_reads[variant]['rsid'].replace(":","_"));
 						# get the p-value, if there was one for the block
 						# pval = haplotype_pvalue_lookup[list_to_string(haplotype_lookup[unique_id][0])];
 						gw_stat = haplotype_gw_stat_lookup[list_to_string(haplotype_lookup[unique_id][0])];
