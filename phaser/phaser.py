@@ -56,6 +56,7 @@ def main():
 	parser.add_argument("--pass_only", type=int, default=1, help="Only use variants labled with PASS in the VCF filter field (0,1).")
 	parser.add_argument("--min_cov", type=int, default=0, help="Minimum total coverage level before outputting haplotypic counts.")
 	parser.add_argument("--unphased_vars", type=int, default=1, help="Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1).")
+	parser.add_argument("--chr_prefix", type=str, default="", help="Add the string to the begining of the VCF contig name. For example set to 'chr' if VCF contig is listed as '1' and bam reference is 'chr1'.")
 	
 	# genome wide phasing
 	parser.add_argument("--gw_phase_method", type=int, default=0, help="Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.")
@@ -82,7 +83,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.1";
+	version = "0.9.2";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -224,30 +225,29 @@ def main():
 			filter = vcf_columns[6];
 			if args.chr == "" or args.chr == chr:
 				if chr not in chromosome_pool: chromosome_pool[chr] = [];
-				if gt_index == -1:
-					fields = vcf_columns[8].split(":");
+				fields = vcf_columns[8].split(":");
+				if "GT" in fields:
 					if "GT" in fields:
 						gt_index = fields.index("GT");
+						geno_string = vcf_columns[9].split(":")[gt_index];
+						xgeno = list(geno_string);
+						if "." not in xgeno:
+							if "|" in xgeno: xgeno.remove("|");
+							if "/" in xgeno:
+								xgeno.remove("/");
+								unphased = True;
+			
+							if len(set(xgeno)) > 1:
+								filters = filter.split(";");
+								if args.pass_only == 0 or "PASS" in filters:
+									chromosome_pool[chr].append(vcf_columns[0:9]+[geno_string,xgeno]);
+									if unphased == True:
+										unphased_count += 1;
+								else:
+									filter_count += 1;
 					else:
-						fatal_error("Genotype, defined by GT not found in input VCF.");
-				else:
-					geno_string = vcf_columns[9].split(":")[gt_index];
-					xgeno = list(geno_string);
-					if "." not in xgeno:
-						if "|" in xgeno: xgeno.remove("|");
-						if "/" in xgeno:
-							xgeno.remove("/");
-							unphased = True;
-				
-						if len(set(xgeno)) > 1:
-							filters = filter.split(";");
-							if args.pass_only == 0 or "PASS" in filters:
-								chromosome_pool[chr].append(vcf_columns[0:9]+[geno_string,xgeno]);
-								if unphased == True:
-									unphased_count += 1;
-							else:
-								filter_count += 1;
-	
+						print_warning("Genotype, defined by GT not found in input VCF for variant %s."%(vcf_columns[2]));
+						
 	stream_vcf.close();
 	bed_out.close();
 	mapper_out.close();
@@ -1085,6 +1085,8 @@ def generate_mapping_table(input):
 	global args;
 	
 	chrom = input[0];
+	chrom = args.chr_prefix + chrom;
+	
 	vcf_lines = input[1];
 	bed_out = tempfile.NamedTemporaryFile(delete=False);
 	mapper_out = tempfile.NamedTemporaryFile(delete=False);
@@ -1121,8 +1123,8 @@ def generate_mapping_table(input):
 		max_allele_size = max([len(x) for x in all_alleles]);
 	
 		if (max_allele_size == 1 or args.include_indels == 1):
-				mapper_out.write("\t".join([vcf_columns[0],vcf_columns[1],unique_id,rs_id,",".join(all_alleles),str(len(vcf_columns[3])),geno_string, str(maf)])+"\n");
-				bed_out.write("\t".join([vcf_columns[0],str(int(vcf_columns[1])-1),vcf_columns[1]])+"\n");
+				mapper_out.write("\t".join([chrom,vcf_columns[1],unique_id,rs_id,",".join(all_alleles),str(len(vcf_columns[3])),geno_string, str(maf)])+"\n");
+				bed_out.write("\t".join([chrom,str(int(vcf_columns[1])-1),vcf_columns[1]])+"\n");
 				het_count += 1;
 		else:
 			total_indels_excluded += 1;
