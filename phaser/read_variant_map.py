@@ -137,7 +137,7 @@ class variant:
 		self.pos = int(variant_columns[1]);
 		self.id = variant_columns[2];
 		self.rs_id = variant_columns[3];
-		self.alleles = [variant_columns[4].split(",")];
+		self.alleles = variant_columns[4].split(",");
 		self.ref_length = int(variant_columns[5]);
 		self.genotype = variant_columns[6];
 		self.maf = variant_columns[7];
@@ -225,7 +225,7 @@ def split_read(alignment_pos, bases,baseqs,cigar, read_id):
 					
 				elif c == "I":
 					#insertion
-					insertions[genome_pos] = bases[read_pos:read_pos+seq_len];
+					insertions[genome_pos-1] = bases[read_pos:read_pos+seq_len];
 					read_pos += seq_len;
 					
 				elif c == "S":
@@ -244,26 +244,23 @@ def split_read(alignment_pos, bases,baseqs,cigar, read_id):
 def identify_allele(alignment, read_coord, xvar):
 	map_start = alignment.genome_start();
 	
-	var_seq = xvar.alleles;
 	read_start = (xvar.pos)-map_start;
 	read_end = (xvar.pos+xvar.ref_length)-map_start;
 	
 	if read_start >= 0 and read_end <= len(alignment.pseudo_read):
 		read_seq = alignment.pseudo_read[read_start:read_end]
-	
+		
+		offset = 0;
 		for genome_pos in range(read_start,read_end):
 			#print(genome_pos);
 			if genome_pos in alignment.insertions:
-				read_seq = alignment.insertions[genome_pos] + read_seq;
-
+				insert_pos = (genome_pos - read_start) + offset + 1;
+				read_seq = read_seq[0:insert_pos] + alignment.insertions[genome_pos] + read_seq[insert_pos:len(read_seq)];
+				offset += len(alignment.insertions[genome_pos]);
+		
 		#remove deletion placeholder
 		read_seq = read_seq.replace("D","");
 		if read_seq != "N":
-			#update the dictionary with reads that match this allele
-			if read_seq in var_seq:
-				for i in range(0,len(var_seq)):
-					if var_seq[i] == read_seq:
-						return(read_seq);
 			return(read_seq);
 	
 	return("");
