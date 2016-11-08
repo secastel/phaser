@@ -83,7 +83,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.2";
+	version = "0.9.3";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -766,11 +766,8 @@ def main():
 						except:
 							print_warning("AF Lookup failed (2) for %s:%d"%(var_chrom,var_pos));
 					else:
-						if dict_variant_reads[variant]['maf'] != None:
-							haplotype_mafs.append(dict_variant_reads[variant]['maf']);
-						else:
-							haplotype_mafs.append(0);
-			
+						haplotype_mafs.append(dict_variant_reads[variant]['maf']);
+						
 				if len(haplotype_mafs) == len(variants):
 					phase_support = [0,0];
 					# now we need to weight the phasing by their MAF
@@ -1165,8 +1162,10 @@ def generate_variant_dict(fields):
 		phase = ["-","-"];
 	
 	maf = fields[6];
-	if maf != "None":
+	try:
 		maf = float(maf);
+	except:
+		maf = 0;
 	
 	return({"id":fields[1], "rsid":fields[2],"ref":all_alleles[0],"chr":id_split[0],"pos":int(id_split[1]),"alleles":ind_alleles,"phase":phase, "gw_phase":phase, "maf":maf, "other_reads":[], "reads":[[] for i in range(len(ind_alleles))], "haplo_reads":[[] for i in range(len(ind_alleles))]});
 	
