@@ -1,24 +1,16 @@
-import sys
-import argparse;
+import sys;
 
-# usage
-# samtools view -q 255 -L variants.bed NA06986.2.M_111215_4.bam | python2.7 read_variant_map.py --baseq 10
-
-def main():
-	#Arguments passed 
-	parser = argparse.ArgumentParser()
-	# required
-	parser.add_argument("--variant_table", type=str, required=True)
-	parser.add_argument("--baseq", type=int, default=10)
-	parser.add_argument("--o", type=str, required=True)
-	parser.add_argument("--splice", type=int, default=1)
-	parser.add_argument("--isize_cutoff", type=float, default=0)
-	
+def do_read_variant_map(variant_table, baseq, o, splice, isize_cutoff):
 	global args;
-	args = parser.parse_args()
+	args = {};
+	args['variant_table'] = variant_table;
+	args['baseq'] = baseq;
+	args['o'] = o;
+	args['splice'] = splice;
+	args['isize_cutoff'] = isize_cutoff;
 	
-	stream_out = open(args.o, "w");
-	stream_variants = open(args.variant_table,"r");
+	stream_out = open(args['o'], "w");
+	stream_variants = open(args['variant_table'],"r");
 	#[output['chr'],str(output['pos']-1),str(output['pos']),output['id']
 
 	contigs = [];
@@ -56,7 +48,7 @@ def main():
 			for index in reversed(buffer_remove):
 				del variant_buffer[index];
 			
-			if (args.isize_cutoff == 0 or template_length <= args.isize_cutoff):
+			if (args['isize_cutoff'] == 0 or template_length <= args['isize_cutoff']):
 				# get the AS
 				alignment_score = "";
 		
@@ -175,7 +167,7 @@ def split_read(alignment_pos, bases,baseqs,cigar, read_id):
 	
 	alignments = [];
 	
-	if args.splice == 1 or "N" not in cigar:
+	if args['splice'] == 1 or "N" not in cigar:
 		#first filter read by BASEQ
 		number_build = "";
 		read_seq = "";
@@ -186,7 +178,7 @@ def split_read(alignment_pos, bases,baseqs,cigar, read_id):
 	
 		for base, quality in zip(bases, baseqs):
 			baseq = ord(quality) - 33;
-			if baseq >= args.baseq:
+			if baseq >= args['baseq']:
 				read_seq += base;
 			else:
 				read_seq += "N";
@@ -264,6 +256,3 @@ def identify_allele(alignment, read_coord, xvar):
 			return(read_seq);
 	
 	return("");
-
-if __name__ == "__main__":
-	main();
