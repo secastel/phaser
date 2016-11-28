@@ -62,7 +62,6 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--write_vcf** _(1)_ - Create a VCF containing phasing information (0,1).
 * **--include_indels** _(0)_ - Include indels in the analysis (0,1). NOTE: since mapping is a problem for indels including them will likely result in poor quality phasing unless specific precautions have been taken.
 * **--output_read_ids** _(0)_ - Output read IDs in the coverage files (0,1).
-* **--output_orphans** _(0)_ - Output reads which fail to map to either allele (0, 1).
 * **--remove_dups** _(1)_ - Remove duplicate reads from all analyses (0,1).
 * **--pass_only** _(1)_ - Only use variants labled with PASS in the VCF filter field (0,1).
 * **--min_cov** _(0)_ - Minimum total coverage level before outputting haplotypic counts.
