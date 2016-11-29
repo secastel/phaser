@@ -12,6 +12,7 @@ from scipy.stats import binom;
 import numpy;
 import os;
 import vcf;
+import pysam;
 import math;
 import copy;
 
@@ -69,7 +70,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.4";
+	version = "0.9.5";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1487,7 +1488,7 @@ def write_vcf():
 							new_phase = "|".join(gw_phase_out);
 							if gw_stat >= args.gw_phase_vcf_min_confidence:
 								if "|" in xfields[gt_index] and xfields[gt_index] != new_phase: phase_corrections += 1;
-								if "/" in xfields[gt_index] and xfields[gt_index] != new_phase: unphased_phased += 1;
+								if "/" in xfields[gt_index] and xfields[gt_index] != "./." and xfields[gt_index] != new_phase: unphased_phased += 1;
 								
 								if args.gw_phase_vcf == 1 or args.gw_phase_vcf == 2:
 									xfields[gt_index] = new_phase;
