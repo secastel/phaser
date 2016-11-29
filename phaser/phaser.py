@@ -70,7 +70,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.5";
+	version = "0.9.6";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -182,11 +182,11 @@ def main():
 		
 	if args.blacklist != "":
 		fun_flush_print("     removing blacklisted variants and processing VCF...");
-		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep '^#\|0|1\|1|0\|0/1' | bedtools intersect -v -a stdin -b "+args.blacklist+" > "+vcf_out.name;
+		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep -v '0|0\|1|1' | bedtools intersect -v -a stdin -b "+args.blacklist+" > "+vcf_out.name;
 		error_code = subprocess.call(call_str,shell=True,stderr=devnull);
 	else:
 		fun_flush_print("     processing VCF...");
-		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep '0|1\|1|0\|0/1' > "+vcf_out.name;
+		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep -v '0|0\|1|1' > "+vcf_out.name;
 		error_code = subprocess.call(call_str,shell=True);
 	
 	if error_code != 0:
