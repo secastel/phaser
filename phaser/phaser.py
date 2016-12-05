@@ -70,7 +70,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.6";
+	version = "0.9.7";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1068,9 +1068,10 @@ def call_mapping_script(input):
 	mapping_result.close();
 	
 	#Save error code from subprocess if not 0, file it writes is truncated and gives unexpected wrong results.
-	error_code = subprocess.call("samtools view -h "+bam+" "+chrom+": | samtools view -Sh "+samtools_arg+" -L "+bed_out+" -q "+mapq+" - | "+args.python_string+" "+return_script_path()+"/call_read_variant_map.py --baseq "+str(args.baseq)+" --splice 1 --isize_cutoff "+str(isize)+" --variant_table "+mapper_out+" --o "+mapping_result.name, stderr=devnull, stdout=devnull, shell=True);
+	run_cmd = "samtools view -h "+bam+" '"+chrom+"': | samtools view -Sh "+samtools_arg+" -L "+bed_out+" -q "+mapq+" - | "+args.python_string+" "+return_script_path()+"/call_read_variant_map.py --baseq "+str(args.baseq)+" --splice 1 --isize_cutoff "+str(isize)+" --variant_table "+mapper_out+" --o "+mapping_result.name
+	error_code = subprocess.call(run_cmd, stdout=devnull, shell=True);
 	if error_code != 0:
-		raise RuntimeError("subprocess.call of call_read_variant_map.py exited with an error")
+		raise RuntimeError("subprocess.call of call_read_variant_map.py exited with an error, with call: %s"%(run_cmd))
 		
 	fun_flush_print("               completed chromosome %s..."%(chrom));
 	return(mapping_result.name);
