@@ -5,7 +5,6 @@ import gzip;
 import tempfile;
 import subprocess;
 import itertools;
-from intervaltree import IntervalTree;
 import sys;
 import time;
 from scipy.stats import binom;
@@ -70,7 +69,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.7";
+	version = "0.9.8";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -78,14 +77,20 @@ def main():
 	fun_flush_print("##################################################");
 	fun_flush_print("");
 	
+	global devnull;
+	devnull = open(os.devnull, 'w')
+	
+	# check for external dependencies
+	if check_dependency("samtools") == False: fatal_error("External dependency 'samtools' not installed.");
+	if check_dependency("bgzip") == False: fatal_error("External dependency 'bgzip' not installed.");
+	if check_dependency("tabix") == False: fatal_error("External dependency 'tabix' not installed.");
+	if check_dependency("bedtools") == False: fatal_error("External dependency 'bedtools' not installed.");
+	
 	if args.id_separator == ":" or args.id_separator == "": fatal_error("ID separator must not be ':' or blank. Please choose another separator that is not found in the contig names.");
 	contig_ban = [args.id_separator, ":"];
 	
 	if args.temp_dir != "":
 		tempfile.tempdir = args.temp_dir;
-	
-	global devnull;
-	devnull = open(os.devnull, 'w')
 	
 	# check for needed files
 	needed_files = ['call_read_variant_map.py','read_variant_map.py'];
@@ -130,23 +135,6 @@ def main():
 	
 	start_time = time.time();
 	
-	dict_haplo_blacklist_interval = {};
-	
-	if len(args.haplo_count_blacklist) > 0:
-		fun_flush_print("#0. Loading haplotypic count blacklist intervals...");
-		stream_in = open(args.haplo_count_blacklist,"r");
-		for line in stream_in:
-			columns = line.replace("\n","").split("\t");
-			chr = columns[0];
-			if chr not in dict_haplo_blacklist_interval: dict_haplo_blacklist_interval[chr] = IntervalTree();
-			
-			name = "";
-			if len(columns) > 3: name = columns[3];
-				
-			dict_haplo_blacklist_interval[chr][int(columns[1]):int(columns[2])] = name;
-	
-		stream_in.close();
-	
 	# load the allele frequency VCF if specified
 	if args.gw_af_vcf != "":
 		if os.path.isfile(args.gw_af_vcf) == True:
@@ -170,6 +158,8 @@ def main():
 	
 	# filter blacklisted variants if necessary, cut only sample column, filter for heterozygous sites
 	# decompress for intersection
+	if args.chr != "":
+		fun_flush_print("     restricting to chromosome '%s'..."%(args.chr));
 	
 	if args.chr != "":
 		decomp_str = "tabix -h "+args.vcf+" "+args.chr+":"
@@ -182,7 +172,7 @@ def main():
 		
 	if args.blacklist != "":
 		fun_flush_print("     removing blacklisted variants and processing VCF...");
-		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep -v '0|0\|1|1' | bedtools intersect -v -a stdin -b "+args.blacklist+" > "+vcf_out.name;
+		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep -v '0|0\|1|1' | bedtools intersect -header -v -a stdin -b "+args.blacklist+" > "+vcf_out.name;
 		error_code = subprocess.call(call_str,shell=True,stderr=devnull);
 	else:
 		fun_flush_print("     processing VCF...");
@@ -191,7 +181,22 @@ def main():
 	
 	if error_code != 0:
 		fatal_error("VCF filtering using subprocess.call \""+call_str+"\" exited with an error")
-		
+	
+	# generate blacklisted variant list
+	set_haplo_blacklist = [];
+	if args.haplo_count_blacklist != "":
+		fun_flush_print("#1b. Loading haplotypic count blacklist intervals...");
+		raw_interval = subprocess.check_output("bedtools intersect -v -a "+vcf_path+" -b "+args.haplo_count_blacklist+" | cut -f 1-2", shell=True);
+		for line in raw_interval.split("\n"):
+			columns = line.replace("\n","").split("\t");
+			if len(columns) > 1:
+				chr = columns[0];
+				if args.chr == "" or args.chr == chr:
+					pos = int(columns[1]);
+					set_haplo_blacklist.append(chr+"_"+str(pos));
+	
+	set_haplo_blacklist = set(set_haplo_blacklist);
+	
 	## PARSE the VCF, put it into a format that can be used by the mapper
 	## one thread per chromosome
 	
@@ -203,8 +208,6 @@ def main():
 	unphased_count = 0;
 	
 	fun_flush_print("     creating variant mapping table...");
-	if args.chr != "":
-		fun_flush_print("          restricting to chromosome '%s'..."%(args.chr));
 	
 	gt_index = -1;
 	
@@ -253,6 +256,8 @@ def main():
 	for chrom in chromosome_pool.keys():
 		pool_input.append([chrom,chromosome_pool[chrom]]);
 	
+	global temp_files;
+	temp_files = [];
 	pool_output = parallelize(generate_mapping_table, pool_input);
 	
 	# clear memory
@@ -373,14 +378,18 @@ def main():
 		fun_flush_print("          retrieved %d reads"%(bam_reads));
 		bam_index += 1;
 		
+		# delete temp mapping files
+		for xfile in result_files:
+			os.remove(xfile);
+	
 	#cleanup temp files
 	os.remove(mapper_out.name);
 	os.remove(bed_out.name);
+	os.remove(vcf_out.name);
 	
-	for xfile in result_files:
+	for xfile in temp_files:
 		os.remove(xfile);
 	
-	os.remove(vcf_out.name);
 	fun_flush_print("#3. Identifying connected variants...");
 	fun_flush_print("     calculating sequencing noise level...");
 	
@@ -834,12 +843,7 @@ def main():
 				pos = int(dict_variant_reads[id]['pos']);
 				
 				# check to see if variant is blacklisted
-				if chrom in dict_haplo_blacklist_interval:
-					blacklist = dict_haplo_blacklist_interval[chrom][pos-1:pos];
-				else:
-					blacklist = [];
-
-				if len(blacklist) == 0:
+				if chrom+"_"+str(pos) not in set_haplo_blacklist:
 					allele = dict_variant_reads[id]['alleles'][int(hap_x[var_index])];
 					allele_index = dict_variant_reads[id]['alleles'].index(allele);
 					
@@ -930,12 +934,8 @@ def main():
 			pos = int(dict_var['pos']);
 				
 			# check to see if variant is blacklisted
-			if chrom in dict_haplo_blacklist_interval:
-				blacklist = dict_haplo_blacklist_interval[chrom][pos-1:pos];
-			else:
-				blacklist = [];
-
-			if len(blacklist) == 0:				
+			if chrom+"_"+str(pos) not in set_haplo_blacklist:
+				
 				if len(haplo_count_bam_indices) == 0:
 					# if no BAM has been selected for haplo counts just use the sum across all BAMs
 					hap_a_count = len(dict_var['read_set'][0]);
@@ -1074,10 +1074,12 @@ def call_mapping_script(input):
 		raise RuntimeError("subprocess.call of call_read_variant_map.py exited with an error, with call: %s"%(run_cmd))
 		
 	fun_flush_print("               completed chromosome %s..."%(chrom));
+	
 	return(mapping_result.name);
 
 def generate_mapping_table(input):
 	global args;
+	global temp_files;
 	
 	chrom = input[0];
 	chrom = args.chr_prefix + chrom;
@@ -1087,6 +1089,9 @@ def generate_mapping_table(input):
 	mapper_out = tempfile.NamedTemporaryFile(delete=False);
 	het_count = 0;
 	total_indels_excluded = 0;
+	
+	temp_files.append(bed_out.name);
+	temp_files.append(mapper_out.name);
 	
 	for vcf_columns in vcf_lines:
 		pos = vcf_columns[1];
@@ -1389,7 +1394,8 @@ def write_vcf():
 	subprocess.call(decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" > "+tmp_out.name,shell=True);
 		
 	vcf_in = open(tmp_out.name,"r");
-	vcf_out = gzip.open(args.o+".vcf.gz","w");
+	
+	vcf_out = open(args.o+".vcf","w");
 	
 	phase_corrections = 0;
 	unphased_phased = 0;
@@ -1514,6 +1520,9 @@ def write_vcf():
 					
 	vcf_out.close();
 	os.remove(tmp_out.name);
+	
+	fun_flush_print("     Compressing and tabix indexing output VCF...");
+	subprocess.call("bgzip -f "+args.o+".vcf; tabix -f -p vcf "+args.o+".vcf.gz", shell=True);
 	
 	return([unphased_phased, phase_corrections]);
 	
@@ -2001,6 +2010,15 @@ def sample_column_map(path, start_col=9, line_key="#CHR"):
 	stream_in.close();
 	
 	return(out_map);
+
+def check_dependency(name):
+	global devnull;
+	
+	error_code = subprocess.call("which "+name, shell=True, stdout=devnull);
+	if error_code == 0:
+		return(True);
+	else:
+		return(False);
 				
 if __name__ == "__main__":
 	main();
