@@ -69,7 +69,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.8";
+	version = "0.9.9";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -727,7 +727,13 @@ def main():
 		
 		if len(nan_strip) > 0:
 			# if setting is on determine genome wide phasing
-			if args.gw_phase_method == 0:
+			# if completely concordant don't need to do anything
+			phase_set = set(phases[0]);
+			if "-" in phase_set: phase_set.remove("-");
+			if len(phase_set) == 1:
+				corrected_phases = [phases[0],phases[1]];
+				cor_phase_stat = 1;
+			elif args.gw_phase_method == 0:
 				# phase using most common phase
 				cor_phase_stat = numpy.mean(nan_strip);
 		
