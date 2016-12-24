@@ -69,7 +69,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.9";
+	version = "0.9.9.1";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1039,13 +1039,15 @@ def process_mapping_result(input):
 			read_id = fields[0];
 			var_id = fields[1];
 			chrom = var_id.split(args.id_separator)[0];
-			# add to the quick lookup dictionary
-			if read_id not in read_vars: read_vars[read_id] = [];
-			read_vars[read_id].append(var_id);
+			read_allele = fields[3];
 			
 			if var_id not in dict_variant_reads: dict_variant_reads[var_id] = generate_variant_dict(fields);
-			read_allele = fields[3];
+			
 			if read_allele in dict_variant_reads[var_id]['alleles']:
+				# add to the quick lookup dictionary
+				if read_id not in read_vars: read_vars[read_id] = [];
+				read_vars[read_id].append(var_id);
+				
 				allele_index = dict_variant_reads[var_id]['alleles'].index(read_allele)
 				dict_variant_reads[var_id]['reads'][allele_index].append(read_id);
 				mapped_reads += 1;
