@@ -24,7 +24,7 @@ def main():
 	parser.add_argument("--sample", help="Sample name in VCF", required = True)
 	parser.add_argument("--mapq", help="Minimum MAPQ for reads to be used for phasing. Can be a comma separated list, each value corresponding to the min MAPQ for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different mapping qualities.", required = True)
 	parser.add_argument("--baseq", type=int, help="Minimum baseq for bases to be used for phasing", required = True)
-	parser.add_argument("--paired_end", type=int, help="Sequencing data comes from a paired end assay (0,1). If set to true phASER will require all reads to have the 'read mapped in proper pair' flag.", required = True)
+	parser.add_argument("--paired_end", help="Sequencing data comes from a paired end assay (0,1). Can be a comma separated list, each value specifying whether sequencing data comes from a paired end assay for a file in the input BAM list. If set to true phASER will require all reads to have the 'read mapped in proper pair' flag.", required = True)
 	parser.add_argument("--o", help="Out prefix",required = True)
 	
 	# optional
@@ -297,14 +297,24 @@ def main():
 	elif len(mapq_list) != len(isize_list):
 		fatal_error("Number of isize values and input BAMs does not match. Supply either one isize to be used for all BAMs or one isize per input BAM.");
 	isize_list = map(float, isize_list);
+
+	#paired_end
+	paired_end_list = args.paired_end.split(",");
+	if len(paired_end_list) == 1 and len(bam_list) > 1:
+		paired_end_list = paired_end_list * len(bam_list);
+	elif len(paired_end_list) != len(bam_list):
+		fatal_error ("Number of paired_end values and input BAMs does not match. Supply either one paired_end to be used for all BAMs or one paired_end per input BAM.");
 	
 	#now get bam reads that overlap het sites using SAMTOOLS
-	samtools_arg = "";
+	samtools_arg_list=[];
 	# remove dups if necessary, and only include properly paired read (ie in correct orientation)
-	if args.remove_dups == 1:
-		samtools_arg += "-F 0x400 "
-	if args.paired_end == 1:
-		samtools_arg += "-f 2"
+	for i in paired_end_list:
+		samtools_arg=""
+		if args.remove_dups == 1:
+			samtools_arg += "-F 0x400 "
+		if int(i) == 1:
+			samtools_arg += "-f 2"
+		samtools_arg_list.append(samtools_arg)
 	
 	global dict_variant_reads;
 	dict_variant_reads = {};
@@ -317,7 +327,7 @@ def main():
 	
 	total_reads = 0;
 	
-	for bam, mapq, isize in zip(bam_list, mapq_list, isize_list):
+	for samtools_arg, bam, mapq, isize in zip(samtools_arg_list, bam_list, mapq_list, isize_list):
 		fun_flush_print("     file: %s"%(bam));
 		fun_flush_print("          minimum mapq: %s"%(mapq));
 		
