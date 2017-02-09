@@ -69,7 +69,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.9.1";
+	version = "0.9.9.2";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1432,7 +1432,8 @@ def write_vcf():
 			vcf_out.write("##FORMAT=<ID=PI,Number=1,Type=String,Description=\"phASER Local Block Index (unique for each block)\">\n");
 			vcf_out.write("##FORMAT=<ID=PW,Number=1,Type=String,Description=\"phASER Genome Wide Genotype\">\n");
 			vcf_out.write("##FORMAT=<ID=PC,Number=1,Type=String,Description=\"phASER Genome Wide Confidence\">\n");
-			
+			if args.gw_phase_vcf == 2:
+				vcf_out.write("##FORMAT=<ID=PS,Number=1,Type=String,Description=\"Phase Set\">\n");
 			format_section = False;
 			format_written = True;
 			
