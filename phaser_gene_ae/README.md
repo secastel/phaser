@@ -38,6 +38,6 @@ Contains the haplotype counts (A = genome wide haplotype 0, B = genome wide hapl
 * 5 - **aCount** - Total allelic count for haplotype A.
 * 6 - **bCount** - Total allelic count for haplotype B.
 * 7 - **totalCount** - Total allelic coverage of this feature (aCount + bCount).
-* 8 - **log2_aFC** - Effect size for the allelic imbalance reported as allelic fold change (log2(aCount/bCount)) defined in our [paper](http://biorxiv.org/content/early/2016/09/30/078717)
+* 8 - **log2_aFC** - Effect size for the allelic imbalance reported as allelic fold change (log2(aCount/bCount)) defined in our [paper](http://biorxiv.org/content/early/2016/09/30/078717).
 * 9 - **n_variants** - Number of variants with allelic data in this feature.
 * 10 - **variants** - List of variants with allelic data in this feature (contig_position_ref_alt).
