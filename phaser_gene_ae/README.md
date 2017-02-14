@@ -10,6 +10,12 @@ Requires phASER to have been run with a phased VCF as input with unphased_vars e
 
 **Important Note** - By default, the haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. In such cases the "--haplo_count_bam" argument can be used to specify the libraries that should be used to generate haplotypic counts.
 
+**Useful files**
+
+The specific features to produce haplotypic counts for must be provided in BED format. This is most often genes. A file containing coordinates for ensembl hg19 genes is included here for convenience:
+
+* BED: ftp://ftp.nygenome.org/sec/phaser/hg19_ensembl.bed.gz
+
 #Arguments
 ##Required
 * **--haplotypic_counts** - Output file from phASER containing read counts for haplotype blocks.
@@ -32,5 +38,6 @@ Contains the haplotype counts (A = genome wide haplotype 0, B = genome wide hapl
 * 5 - **aCount** - Total allelic count for haplotype A.
 * 6 - **bCount** - Total allelic count for haplotype B.
 * 7 - **totalCount** - Total allelic coverage of this feature (aCount + bCount).
-* 8 - **n_variants** - Number of variants with allelic data in this feature.
-* 9 - **variants** - List of variants with allelic data in this feature (contig_position_ref_alt).
+* 8 - **log2_aFC** - Effect size for the allelic imbalance reported as allelic fold change (log2(aCount/bCount)) defined in our [paper](http://biorxiv.org/content/early/2016/09/30/078717)
+* 9 - **n_variants** - Number of variants with allelic data in this feature.
+* 10 - **variants** - List of variants with allelic data in this feature (contig_position_ref_alt).
