@@ -2,6 +2,7 @@ import pandas;
 import gzip;
 from intervaltree import IntervalTree;
 import argparse;
+import math;
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -13,10 +14,18 @@ def main():
 	# optional
 	parser.add_argument("--gw_cutoff", type=float,default=0.9, help="Minimum genome wide phase confidence for phASER haplotype blocks.")
 	parser.add_argument("--min_cov", type=int, default=1, help="Minimum total coverage for a feature to be outputted.")
-	parser.add_argument("--no_gw_phase", type=int, default=0, help="Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved (IE which haplotyp A/B is arbitrary and inconsistent between genes).")
+	parser.add_argument("--no_gw_phase", type=int, default=0, help="Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved (IE which haplotype is A/B is arbitrary and inconsistent between genes).")
 	
 	global args;
 	args = parser.parse_args()
+	
+	version = "1.1";
+	print("");
+	print("##################################################")
+	print("          Welcome to phASER Gene AE v%s"%(version));
+	print("  Author: Stephane Castel (scastel@nygenome.org)")
+	print("##################################################");
+	print("");
 	
 	print("#1 Loading features...");
 	dict_feature_intervals = {};
@@ -88,16 +97,31 @@ def main():
 	print("#4 Outputting feature haplotype counts...");	
 	
 	stream_out = open(args.o, "w");
-	stream_out.write("\t".join(["contig","start","stop","name","aCount","bCount","totalCount","n_variants","variants"])+"\n");
+	stream_out.write("\t".join(["contig","start","stop","name","aCount","bCount","totalCount","log2_aFC","n_variants","variants"])+"\n");
 	
 	for index in range(0,len(dict_features.keys())):
 		total_cov = dict_features[index]['aCount']+dict_features[index]['bCount'];
 		n_variants = len(dict_features[index]['variants']);
-			
-		if total_cov >= args.min_cov:
-			stream_out.write("\t".join(map(str,[dict_features[index]['chr'],dict_features[index]['start'],dict_features[index]['stop'],dict_features[index]['name'],dict_features[index]['aCount'],dict_features[index]['bCount'],total_cov, n_variants, ",".join(dict_features[index]['variants'])]))+"\n");
+		log2_afc = zero_log(zero_divide(dict_features[index]['aCount'],dict_features[index]['bCount']),2);
 		
+		if total_cov >= args.min_cov:
+			stream_out.write("\t".join(map(str,[dict_features[index]['chr'],dict_features[index]['start'],dict_features[index]['stop'],dict_features[index]['name'],dict_features[index]['aCount'],dict_features[index]['bCount'],total_cov, log2_afc, n_variants, ",".join(dict_features[index]['variants'])]))+"\n");
+		else:
+			stream_out.write("\t".join(map(str,[dict_features[index]['chr'],dict_features[index]['start'],dict_features[index]['stop'],dict_features[index]['name'],0,0,0, float('nan'), 0, ""]))+"\n");
+			
 	stream_out.close();
+
+def zero_divide(a,b):
+	if b == 0:
+		return(float('inf'));
+	else:
+		return(float(a)/float(b));
+	
+def zero_log(value,base):
+	if value == 0:
+		return(float('-inf'));
+	else:
+		return(math.log(value,base));
 			
 if __name__ == "__main__":
 	main();
