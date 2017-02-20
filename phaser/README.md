@@ -9,7 +9,7 @@ Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalain
 Runs on Python 2.7.x and has the following dependencies: [pyVCF](https://pyvcf.readthedocs.org), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [tabix](http://www.htslib.org/doc/tabix.html), [bedtools](http://bedtools.readthedocs.org), [Cython](http://cython.org)
 
 #Setup
-Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command: "python setup.py build_ext --inplace".
+Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command: "python2.7 setup.py build_ext --inplace".
 
 #Usage
 Requires a VCF and BAM, produces a VCF with computed haplotype phases and result files containing haplotype details, statistics, and read counts. By default only sites with the "PASS" flag in the VCF will be considered, however this behavior can be changed using the "--pass_only 0" argument.
