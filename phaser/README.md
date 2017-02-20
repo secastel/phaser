@@ -8,6 +8,9 @@ Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalain
 
 Runs on Python 2.7.x and has the following dependencies: [pyVCF](https://pyvcf.readthedocs.org), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [tabix](http://www.htslib.org/doc/tabix.html), [bedtools](http://bedtools.readthedocs.org), [Cython](http://cython.org)
 
+#Tutorial
+I have written a [step-by-step tutorial](https://stephanecastel.wordpress.com/2017/02/15/how-to-generate-ase-data-with-phaser/) describing how to use phASER to generate ASE data. If you aren't sure where to start give this a read.
+
 #Setup
 Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command: "python2.7 setup.py build_ext --inplace".
 
