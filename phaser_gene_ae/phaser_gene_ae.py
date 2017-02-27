@@ -19,7 +19,7 @@ def main():
 	global args;
 	args = parser.parse_args()
 	
-	version = "1.1";
+	version = "1.1.2";
 	print("");
 	print("##################################################")
 	print("          Welcome to phASER Gene AE v%s"%(version));
@@ -62,7 +62,7 @@ def main():
 	#	11 blockGWPhase
 	#	12 gwStat
 
-	df_haplo_counts = pandas.DataFrame.from_csv(args.haplotypic_counts, sep="\t", index_col=False);
+	df_haplo_counts = pandas.read_csv(args.haplotypic_counts, sep="\t", index_col=False);
 	
 	print("#3 Generating feature level haplotypic counts...");
 	
