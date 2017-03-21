@@ -69,7 +69,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.9.2";
+	version = "0.9.9.3";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1419,26 +1419,24 @@ def write_vcf():
 	unphased_phased = 0;
 	
 	set_phased_vars = set(haplotype_lookup.keys());
-	format_section = False;
-	format_written = False;
-	
+	format_text = "";
 	for line in vcf_in:
 		if "##FORMAT" in line:
-			format_section = True;
-		elif format_section == True and format_written == False:
-			# insert new format info here
-			vcf_out.write("##FORMAT=<ID=PG,Number=1,Type=String,Description=\"phASER Local Genotype\">\n");
-			vcf_out.write("##FORMAT=<ID=PB,Number=1,Type=String,Description=\"phASER Local Block\">\n");
-			vcf_out.write("##FORMAT=<ID=PI,Number=1,Type=String,Description=\"phASER Local Block Index (unique for each block)\">\n");
-			vcf_out.write("##FORMAT=<ID=PW,Number=1,Type=String,Description=\"phASER Genome Wide Genotype\">\n");
-			vcf_out.write("##FORMAT=<ID=PC,Number=1,Type=String,Description=\"phASER Genome Wide Confidence\">\n");
-			if args.gw_phase_vcf == 2:
-				vcf_out.write("##FORMAT=<ID=PS,Number=1,Type=String,Description=\"Phase Set\">\n");
-			format_section = False;
-			format_written = True;
-			
+			format_text += line;
+			vcf_out.write(line);
+		
 		vcf_columns = line.replace("\n","").split("\t");
 		if line.startswith("#CHROM"):
+			# we reached the end of the format section
+			# dump it and add phaser format fields if needed
+			if "##FORMAT=<ID=PG" not in format_text: vcf_out.write("##FORMAT=<ID=PG,Number=1,Type=String,Description=\"phASER Local Genotype\">\n");
+			if "##FORMAT=<ID=PB" not in format_text: vcf_out.write("##FORMAT=<ID=PB,Number=1,Type=String,Description=\"phASER Local Block\">\n");
+			if "##FORMAT=<ID=PI" not in format_text: vcf_out.write("##FORMAT=<ID=PI,Number=1,Type=String,Description=\"phASER Local Block Index (unique for each block)\">\n");
+			if "##FORMAT=<ID=PW" not in format_text: vcf_out.write("##FORMAT=<ID=PW,Number=1,Type=String,Description=\"phASER Genome Wide Genotype\">\n");
+			if "##FORMAT=<ID=PC" not in format_text: vcf_out.write("##FORMAT=<ID=PC,Number=1,Type=String,Description=\"phASER Genome Wide Confidence\">\n");
+			if args.gw_phase_vcf == 2:
+				if "##FORMAT=<ID=PS" not in format_text: vcf_out.write("##FORMAT=<ID=PS,Number=1,Type=String,Description=\"Phase Set\">\n");
+
 			# if multiple samples only output phased sample
 			out_cols = vcf_columns[0:9] + [vcf_columns[9]];
 			vcf_out.write("\t".join(out_cols)+"\n");
@@ -1475,8 +1473,13 @@ def write_vcf():
 						if sample_fields != n_fields:
 							missing_cols = n_fields - sample_fields;
 							vcf_columns[i] += ":" * missing_cols;
-				
-					vcf_columns[8] += ":PG:PB:PI:PW:PC";
+					
+					# update the format tags only if they are needed
+					vcf_format_fields = vcf_columns[8].split(":");
+					phaser_tags = ['PG','PB','PI','PW','PC'];
+					for tag in phaser_tags:
+						if tag not in vcf_format_fields: vcf_format_fields.append(tag);
+					vcf_columns[8] = ":".join(vcf_format_fields);
 					
 					#generate a unique id
 					unique_id = chrom+args.id_separator+str(pos)+args.id_separator+(args.id_separator.join(all_alleles));
@@ -1524,13 +1527,33 @@ def write_vcf():
 								xfields[gt_index] = "|".join(alleles_out);
 								vcf_columns[9] = ":".join(xfields);
 						
+						sample_fields = vcf_columns[9].split(":");
+						sample_fields += ['']*(len(vcf_format_fields) - len(sample_fields));
+						sample_fields[vcf_format_fields.index('PG')] = "|".join(alleles_out);
+						sample_fields[vcf_format_fields.index('PB')] = list_to_string(variants_out);
+						sample_fields[vcf_format_fields.index('PI')] = str(block_index);
+						sample_fields[vcf_format_fields.index('PW')] = "|".join(gw_phase_out);
+						sample_fields[vcf_format_fields.index('PC')] = str(gw_stat);
+						
+						# ADD PS IF NEEDED
 						if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
-							vcf_columns[8] += ":PS";
-							vcf_columns[9] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat)+":"+str(block_index);
-						else:
-							vcf_columns[9] += ":"+"|".join(alleles_out)+":"+list_to_string(variants_out)+":"+str(block_index)+":"+"|".join(gw_phase_out)+":"+str(gw_stat);
+							if 'PS' not in vcf_format_fields:
+								vcf_columns[8] += ":PS";
+								vcf_format_fields.append("PS");
+								sample_fields.append('');
+							sample_fields[vcf_format_fields.index('PS')] = str(block_index);
+						
+						vcf_columns[9] = ":".join(sample_fields);
+
 					else:
-						vcf_columns[9] += ":"+"/".join(sorted(genotype))+":.:.:"+vcf_columns[9].split(":")[gt_index]+":."
+						sample_fields = vcf_columns[9].split(":");
+						sample_fields += ['']*(len(vcf_format_fields) - len(sample_fields));
+						sample_fields[vcf_format_fields.index('PG')] = "/".join(sorted(genotype));
+						sample_fields[vcf_format_fields.index('PB')] = '.';
+						sample_fields[vcf_format_fields.index('PI')] = '.';
+						sample_fields[vcf_format_fields.index('PW')] = vcf_columns[9].split(":")[gt_index];
+						sample_fields[vcf_format_fields.index('PC')] = '.';
+						vcf_columns[9] = ":".join(sample_fields);
 				
 				# if VCF contains multiple samples, only output the phased sample
 				out_cols = vcf_columns[0:9] + [vcf_columns[9]];
