@@ -13,13 +13,13 @@ def main():
 	
 	# optional
 	parser.add_argument("--gw_cutoff", type=float,default=0.9, help="Minimum genome wide phase confidence for phASER haplotype blocks.")
-	parser.add_argument("--min_cov", type=int, default=1, help="Minimum total coverage for a feature to be outputted.")
+	parser.add_argument("--min_cov", type=int, default=0, help="Minimum total coverage for a feature to be outputted.")
 	parser.add_argument("--no_gw_phase", type=int, default=0, help="Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved (IE which haplotype is A/B is arbitrary and inconsistent between genes).")
 	
 	global args;
 	args = parser.parse_args()
 	
-	version = "1.1.2";
+	version = "1.1.3";
 	print("");
 	print("##################################################")
 	print("          Welcome to phASER Gene AE v%s"%(version));
