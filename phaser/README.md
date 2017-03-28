@@ -8,16 +8,16 @@ Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalain
 
 Runs on Python 2.7.x and has the following dependencies: [pyVCF](https://pyvcf.readthedocs.org), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [tabix](http://www.htslib.org/doc/tabix.html), [bedtools](http://bedtools.readthedocs.org), [Cython](http://cython.org)
 
-#Citation
+# Citation
 Castel, S. E., Mohammadi, P., Chung, W. K., Shen, Y. & Lappalainen, T. Rare variant phasing and haplotypic expression from RNA sequencing with phASER. Nat Commun 7, 12817 (2016).
 
-#Tutorial
+# Tutorial
 I have written a [step-by-step tutorial](https://stephanecastel.wordpress.com/2017/02/15/how-to-generate-ase-data-with-phaser/) describing how to use phASER to generate ASE data. If you aren't sure where to start give this a read.
 
-#Setup
+# Setup
 Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command: "python2.7 setup.py build_ext --inplace".
 
-#Usage
+# Usage
 Requires a VCF and BAM, produces a VCF with computed haplotype phases and result files containing haplotype details, statistics, and read counts. By default only sites with the "PASS" flag in the VCF will be considered, however this behavior can be changed using the "--pass_only 0" argument.
 
 **Test case**
@@ -46,8 +46,8 @@ If your goal is to do gene level allelic expression analysis, you may want to co
 
 By default, the haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. In such cases the "--haplo_count_bam" argument can be used to specify the libraries that should be used to generate haplotypic counts.
 
-#Arguments
-##Required
+# Arguments
+## Required
 * **--bam** - Comma separated list of BAM files containing reads. Duplicates should be marked, and files should be indexed using samtools index.
 * **--vcf** - VCF file containing genotype for the sample. Must be gzipped and indexed. Chromosome names must be consistent between BAM and VCF.
 * **--sample** - Name of sample to use in VCF file.
@@ -56,7 +56,7 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--paired_end** - Sequencing data comes from a paired end assay (0,1). Can be a comma separated list, each value specifying whether sequencing data comes from a paired end assay for a file in the input BAM list. If set to true phASER will require all reads to have the 'read mapped in proper pair' flag.
 * **--o** - Output file prefix name.
 
-#Optional
+# Optional
 * **--python_string** _(python2.7)_ - Command to use when calling python, required for running read variant mapping script.
 * **--haplo_count_bam** _()_ - Comma separated list of BAMs to use when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank will use all libraries for counts, otherwise will only use the libraries specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...
 * **--haplo_count_blacklist** _()_ - BED file containing genomic intervals to be excluded from haplotypic counts. Reads from any variants which lie within these regions will not be counted for haplotypic counts. This will not affect phasing.
@@ -74,20 +74,20 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1). **NOTE** if you intend to run phASER Gene AE this must be enabled.
 * **--chr_prefix** _()_ - Add this string to the begining of the VCF contig name. For example set to 'chr' if VCF contig is listed as '1' and bam reference is 'chr1'.
 
-##Genome Wide Phasing
+## Genome Wide Phasing
 * **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.
 * **--gw_af_vcf** _()_ - VCF with allele frequencies from the population which was used to do the phasing. If left blank it will look for an allele frequency in the input VCF (--vcf).
 * **--gw_af_field** _('AF')_ - Field from --gw_af_vcf to use for allele frequency.
 * **--gw_phase_vcf** _(0)_ - Replace GT field of output VCF using phASER genome wide phase. 0: do not replace; 1: replace when gw_confidence >= --gw_phase_vcf_min_confidence; 2: as in (1), but in addition replace with haplotype block phase when gw_confidence < --gw_phase_vcf_min_confidence and include PS field. See --gw_phase_method for options.
 * **--gw_phase_vcf_min_confidence** _(0.90)_ - If replacing GT field in VCF only replace when phASER haplotype gw_confidence >= this value.
 
-##Performance Related
+## Performance Related
 * **--threads** _(1)_ - Maximum number of threads to use. Note the maximum thread count for some tasks is bounded by the data (for example 1 thread per contig for haplotype construction).
 * **--max_block_size** _(15)_ - Maximum number of variants to phase at once. Number of haplotypes tested = 2 ^ # variants in block. Blocks larger than this will be split into sub blocks, phased, and then the best scoring sub blocks will be phased with each other.
 * **--temp_dir** _()_ - Location of temporary directory to use for storing files. If left blank will default to system temp dir. NOTE: potentially large files will be stored in this directory, so please ensure there is sufficient free space.
 * **--max_items_per_thread** _(100,000)_ - Maximum number of items that can be assigned to a single thread to process. NOTE: if this number is too high Python will stall when trying to join the pools.
 
-##Debug / Development / Reporting
+## Debug / Development / Reporting
 * **--show_warning** _(0)_ - Show warnings in stdout (0,1).
 * **--debug** _(0)_ - Show debug mode messages (0,1).
 * **--chr** _()_ - Restrict haplotype phasing to a specific chromosome.
@@ -95,9 +95,9 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--id_separator** ('\_') - Separator to use when generating unique IDs. Must not be found in contig name, and cannot include ':'.
 * **--output_network** _()_ - Output the haplotype connection network for the given variant.
 
-#Output Files
+# Output Files
 
-##*out_prefix*.haplotypes.txt
+## *out_prefix*.haplotypes.txt
 
 Contains all haplotypes phased along with detailed phasing statistics.
 
@@ -118,7 +118,7 @@ Contains all haplotypes phased along with detailed phasing statistics.
 * 15 - **gw_phase** - Genome wide phasing for the alleles. The method for determing the genome wide phase is specified by --gw_phase_method. The phase will be outputted in the GT field of the VCF if --gw_phase_vcf = 1.
 * 16 - **gw_confidence** - This represents the confidence of the GW phase assignment (between 0.5 and 1). A value of 0.5 indicates equal support for the two genome wide phasing configurations. In these cases the phase from the input VCF will be outputted.
 
-##*out_prefix*.vcf.gz
+## *out_prefix*.vcf.gz
 
 Output of the input VCF file gzipped and containing the following added fields in the appropriate sample column:
 * **GT** - This will only be outputted (overwriting the original input phase with PW) if --gw_phase_vcf = 1 and the phase statistics meet the criteria specified by --gw_phase_vcf_min_config_p and --gw_phase_vcf_min_confidence.
@@ -128,7 +128,7 @@ Output of the input VCF file gzipped and containing the following added fields i
 * **PI** - phASER Local Block Index - Unique index generated for each haplotype block.
 * **PB** - phASER Local Block Variants - Comma separated list of variant IDs found in this haplotype block.
 
-##*out_prefix*.allele_config.txt
+## *out_prefix*.allele_config.txt
 
 This file contains the allele configuration for each variant where a phase could be established using the input reads. This file can be used to identify all cases of compound heterozygousity. Note: each variant pair will be listed twice, with A and B switched.
 
@@ -138,7 +138,7 @@ This file contains the allele configuration for each variant where a phase could
 * **rsid_b** - RS ID for variant B.
 * **configuration** - Haplotype configuration for the two variants listed, one of two possibilities: "trans" = ref,alt|alt,ref (compound heterozygote), "cis" = ref,ref|alt,alt.
 
-##*out_prefix*.allelic_counts.txt
+## *out_prefix*.allelic_counts.txt
 
 Contains reference and alternative read counts for each heterozygous variant used for phasing. Format is the same as the [GATK ASEReadCounter](https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_rnaseq_ASEReadCounter.php) and [allelecounter](https://github.com/secastel/allelecounter) outputs. If --min_cov is set only includes variants where totalCount ≥ min_cov.
 * 1 - **contig** - Contig variant is found on.
@@ -150,7 +150,7 @@ Contains reference and alternative read counts for each heterozygous variant use
 * 7 - **altCount** - Alternate allele read count.
 * 8 - **totalCount** - Total number of reads covering this base (refCount + altCount).
 
-##*out_prefix*.haplotypic_counts.txt
+## *out_prefix*.haplotypic_counts.txt
 
 Contains the number of unique reads that map to each haplotype for all phased haplotypes. If --min_cov is set only includes haplotypes where totalCount ≥ min_cov.
 
@@ -165,7 +165,7 @@ Contains the number of unique reads that map to each haplotype for all phased ha
 * 9 - **bCount** - Number of unique reads mapping to haplotype B.
 * 10 - **totalCount** - Total number of unique reads covering this haplotype (aCount + bCount).
 
-##*out_prefix*.variant_connections.txt
+## *out_prefix*.variant_connections.txt
 
 Statistics for every variant - variant connection observed by phASER in the data.
 
@@ -176,7 +176,7 @@ Statistics for every variant - variant connection observed by phASER in the data
 * **conflicting_configuration_p** - p value from the test for evidence for conflicting haplotype configuration.
 * **phase_concordant** - If the input VCF was phased, is the phasing chosen by phASER concordant with the input phase (1/0).
 
-##*out_prefix*.allele_config.txt
+## *out_prefix*.allele_config.txt
 
 Configuration of all alleles with read backed phasing. Configuration can be either _cis_ or _trans_ and refers to the alternative alleles being either on the same haplotype (_cis_) or different haplotypes (_trans_).
 
@@ -186,7 +186,7 @@ Configuration of all alleles with read backed phasing. Configuration can be eith
 * **rsid_b** - RS ID of second variant.
 * **configuration** - Haplotype configuration of alternative alleles.
 
-##*out_prefix*.network.links.txt
+## *out_prefix*.network.links.txt
 
 If --output_network is enabled will contain the number of connections observed between each allele in the specific haplotype.
 
@@ -195,7 +195,7 @@ If --output_network is enabled will contain the number of connections observed b
 * **connections** - Number of connections observed between these two variants, 1 connection = 1 read spanning both variants.
 * **inferred** - Number of inferred connections between these two variants, 1 inferred connection = 1 read spanning alternative alleles of two variants.
 
-##*out_prefix*.network.nodes.txt
+## *out_prefix*.network.nodes.txt
 
 If --output_network is enabled will contain the names of each allele in the specific haplotype.
 
