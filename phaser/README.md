@@ -15,7 +15,7 @@ Castel, S. E., Mohammadi, P., Chung, W. K., Shen, Y. & Lappalainen, T. Rare vari
 I have written a [step-by-step tutorial](https://stephanecastel.wordpress.com/2017/02/15/how-to-generate-ase-data-with-phaser/) describing how to use phASER to generate ASE data. If you aren't sure where to start give this a read.
 
 # Setup
-Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command: "python2.7 setup.py build_ext --inplace".
+Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command: "python2.7 setup.py build_ext --inplace". **NOTE** Cython requires the package python-devel to be installed. This can be installed using a package manager using e.g. "yum install python-devel.x86_64".
 
 # Usage
 Requires a VCF and BAM, produces a VCF with computed haplotype phases and result files containing haplotype details, statistics, and read counts. By default only sites with the "PASS" flag in the VCF will be considered, however this behavior can be changed using the "--pass_only 0" argument.
