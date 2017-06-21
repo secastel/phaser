@@ -69,7 +69,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.9.3";
+	version = "0.9.9.4";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -186,14 +186,14 @@ def main():
 	set_haplo_blacklist = [];
 	if args.haplo_count_blacklist != "":
 		fun_flush_print("#1b. Loading haplotypic count blacklist intervals...");
-		raw_interval = subprocess.check_output("bedtools intersect -v -a "+vcf_path+" -b "+args.haplo_count_blacklist+" | cut -f 1-2", shell=True);
+		raw_interval = subprocess.check_output("bedtools intersect -a "+vcf_path+" -b "+args.haplo_count_blacklist+" | cut -f 1-2", shell=True);
 		for line in raw_interval.split("\n"):
 			columns = line.replace("\n","").split("\t");
 			if len(columns) > 1:
-				chr = columns[0];
-				if args.chr == "" or args.chr == chr:
+				xchr = columns[0];
+				if args.chr == "" or args.chr == xchr:
 					pos = int(columns[1]);
-					set_haplo_blacklist.append(chr+"_"+str(pos));
+					set_haplo_blacklist.append(xchr+"_"+str(pos));
 	
 	set_haplo_blacklist = set(set_haplo_blacklist);
 	
