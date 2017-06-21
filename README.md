@@ -12,3 +12,6 @@ phASER is made available under the [GNU GENERAL PUBLIC LICENSE v3](https://githu
 Documentation Pages: [phASER](https://github.com/secastel/phaser/tree/master/phaser), [phASER Annotate](https://github.com/secastel/phaser/tree/master/phaser_annotate), [phASER Gene AE](https://github.com/secastel/phaser/tree/master/phaser_gene_ae)
 
 ![alt tag](https://raw.github.com/secastel/phaser/master/docs/phaser_workflow.png)
+
+# IMPORTANT NOTE - BUG FIX
+A bug was introduced in version 0.9.8 (12/16/16) and fixed in version 0.9.9.4 (06/21/17) that caused problems with haplotypic counts when using the --haplo_count_blacklist argument. This bug affects the haplotypic counts generated (haplotypic_counts.txt), and any downstream analyses of those counts, including generating gene level haplotypic expression with phaser_gene_ae. If the --haplo_count_blacklist was not specified, then the results were not affected. In addition, a new "hg19_haplo_count_blacklist.bed.gz" file has been uploaded, which addresses problems related to this issue. If you used the --haplo_count_blacklist argument with a version of phASER between 0.9.8 and 0.9.9.3 you must re-run your analyses with version 0.9.9.4+.
