@@ -14,7 +14,8 @@ Requires phASER to have been run with a phased VCF as input with unphased_vars e
 
 The specific features to produce haplotypic counts for must be provided in BED format. This is most often genes. A file containing coordinates for ensembl hg19 genes is included here for convenience:
 
-* BED: ftp://ftp.nygenome.org/sec/phaser/hg19_ensembl.bed.gz
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/hg19_ensembl.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/hg19_ensembl.chr.bed.gz
 
 #Arguments
 ##Required
