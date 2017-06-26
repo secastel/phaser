@@ -69,7 +69,7 @@ def main():
 	args = parser.parse_args()
 	
 	#setup
-	version = "0.9.9.4";
+	version = "0.9.9.5";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1429,13 +1429,13 @@ def write_vcf():
 		if line.startswith("#CHROM"):
 			# we reached the end of the format section
 			# dump it and add phaser format fields if needed
-			if "##FORMAT=<ID=PG" not in format_text: vcf_out.write("##FORMAT=<ID=PG,Number=1,Type=String,Description=\"phASER Local Genotype\">\n");
-			if "##FORMAT=<ID=PB" not in format_text: vcf_out.write("##FORMAT=<ID=PB,Number=1,Type=String,Description=\"phASER Local Block\">\n");
-			if "##FORMAT=<ID=PI" not in format_text: vcf_out.write("##FORMAT=<ID=PI,Number=1,Type=String,Description=\"phASER Local Block Index (unique for each block)\">\n");
-			if "##FORMAT=<ID=PW" not in format_text: vcf_out.write("##FORMAT=<ID=PW,Number=1,Type=String,Description=\"phASER Genome Wide Genotype\">\n");
-			if "##FORMAT=<ID=PC" not in format_text: vcf_out.write("##FORMAT=<ID=PC,Number=1,Type=String,Description=\"phASER Genome Wide Confidence\">\n");
+			if "##FORMAT=<ID=PG," not in format_text: vcf_out.write("##FORMAT=<ID=PG,Number=1,Type=String,Description=\"phASER Local Genotype\">\n");
+			if "##FORMAT=<ID=PB," not in format_text: vcf_out.write("##FORMAT=<ID=PB,Number=1,Type=String,Description=\"phASER Local Block\">\n");
+			if "##FORMAT=<ID=PI," not in format_text: vcf_out.write("##FORMAT=<ID=PI,Number=1,Type=String,Description=\"phASER Local Block Index (unique for each block)\">\n");
+			if "##FORMAT=<ID=PW," not in format_text: vcf_out.write("##FORMAT=<ID=PW,Number=1,Type=String,Description=\"phASER Genome Wide Genotype\">\n");
+			if "##FORMAT=<ID=PC," not in format_text: vcf_out.write("##FORMAT=<ID=PC,Number=1,Type=String,Description=\"phASER Genome Wide Confidence\">\n");
 			if args.gw_phase_vcf == 2:
-				if "##FORMAT=<ID=PS" not in format_text: vcf_out.write("##FORMAT=<ID=PS,Number=1,Type=String,Description=\"Phase Set\">\n");
+				if "##FORMAT=<ID=PS," not in format_text: vcf_out.write("##FORMAT=<ID=PS,Number=1,Type=String,Description=\"Phase Set\">\n");
 
 			# if multiple samples only output phased sample
 			out_cols = vcf_columns[0:9] + [vcf_columns[9]];
