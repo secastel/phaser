@@ -12,6 +12,7 @@ def main():
 	parser.add_argument("--o", required=True, help="Output file")
 	
 	# optional
+	parser.add_argument("--id_separator", default="_", help="Separator used for generating unique variant IDs when phASER was run.")
 	parser.add_argument("--gw_cutoff", type=float,default=0.9, help="Minimum genome wide phase confidence for phASER haplotype blocks.")
 	parser.add_argument("--min_cov", type=int, default=0, help="Minimum total coverage for a feature to be outputted.")
 	parser.add_argument("--no_gw_phase", type=int, default=0, help="Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved (IE which haplotype is A/B is arbitrary and inconsistent between genes).")
@@ -19,7 +20,7 @@ def main():
 	global args;
 	args = parser.parse_args()
 	
-	version = "1.1.3";
+	version = "1.1.4";
 	print("");
 	print("##################################################")
 	print("          Welcome to phASER Gene AE v%s"%(version));
@@ -74,25 +75,27 @@ def main():
 			
 			if args.no_gw_phase == 1:
 				for feature in features:
-					feature_index = feature.data;
-					if row['totalCount'] > (dict_features[feature_index]['aCount'] + dict_features[feature_index]['bCount']):
-						dict_features[feature_index]['aCount'] = row['aCount'];
-						dict_features[feature_index]['bCount'] = row['bCount'];
-						dict_features[feature_index]['variants'] = row['variants'].split(",");
+					if variant_feature_overlap(row['variants'],feature) == 1:
+						feature_index = feature.data;
+						if row['totalCount'] > (dict_features[feature_index]['aCount'] + dict_features[feature_index]['bCount']):
+							dict_features[feature_index]['aCount'] = row['aCount'];
+							dict_features[feature_index]['bCount'] = row['bCount'];
+							dict_features[feature_index]['variants'] = row['variants'].split(",");
 			
 			elif row['blockGWPhase'] != "0/1" and float(row['gwStat'] >= args.gw_cutoff):
 				for feature in features:
-					feature_index = feature.data;
-					if row['blockGWPhase'] == "0|1":
-						# A = GW haplotype 0
-						dict_features[feature_index]['aCount'] += row['aCount'];
-						dict_features[feature_index]['bCount'] += row['bCount'];
-					elif row['blockGWPhase'] == "1|0":
-						# A = GW haplotype 1
-						dict_features[feature_index]['aCount'] += row['bCount'];
-						dict_features[feature_index]['bCount'] += row['aCount'];
-				
-					dict_features[feature_index]['variants'] += row['variants'].split(",");
+					if variant_feature_overlap(row['variants'],feature) == 1:
+						feature_index = feature.data;
+						if row['blockGWPhase'] == "0|1":
+							# A = GW haplotype 0
+							dict_features[feature_index]['aCount'] += row['aCount'];
+							dict_features[feature_index]['bCount'] += row['bCount'];
+						elif row['blockGWPhase'] == "1|0":
+							# A = GW haplotype 1
+							dict_features[feature_index]['aCount'] += row['bCount'];
+							dict_features[feature_index]['bCount'] += row['aCount'];
+					
+						dict_features[feature_index]['variants'] += row['variants'].split(",");
 	
 	print("#4 Outputting feature haplotype counts...");	
 	
@@ -110,6 +113,21 @@ def main():
 			stream_out.write("\t".join(map(str,[dict_features[index]['chr'],dict_features[index]['start'],dict_features[index]['stop'],dict_features[index]['name'],0,0,0, float('nan'), 0, ""]))+"\n");
 			
 	stream_out.close();
+
+def variant_feature_overlap(variants,feature):
+
+	found_overlap = 0;
+	# require that at least one variant in the haplotype is found within the gene
+	for xvar in variants.split(","):
+		if args.id_separator not in xvar or xvar.count(args.id_separator) < 3:
+			print("ERROR - ID separator not found in variant ID, please ensure that --id_separator is set correctly.")
+			quit();
+		fields = xvar.split(args.id_separator);
+		xvar_pos = int(fields[1]);
+		if (xvar_pos-1) - feature.begin >= 0 and (xvar_pos-1) - feature.end <= 0:
+			found_overlap = 1;
+			
+	return(found_overlap);
 
 def zero_divide(a,b):
 	if b == 0:
