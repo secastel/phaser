@@ -6,16 +6,16 @@ Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalain
 Runs on Python 2.7.x and has the following dependencies: [pandas](http://pandas.pydata.org), [IntervalTree](https://github.com/jamescasbon/PyVCF)
 
 # Usage
-Requires phASER to have been run with a phased VCF as input with unphased_vars enabled. Takes an input BED format file containing the coordinates for genes (feautres) where haplotypic counts are to be measured.
+Requires phASER to have been run with a phased VCF as input with unphased_vars enabled. Takes an input BED format file containing the coordinates for genes (feautres) where haplotypic counts are to be measured. **NOTE** this version of phaser_gene_ae is only compatible with results from phASER v1.0.0+.
 
-**Important Note** - By default, the haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. In such cases the "--haplo_count_bam" argument can be used to specify the libraries that should be used to generate haplotypic counts.
+**Important Note** - If multiple input BAMs were used when running phASER, gene level haplotypic counts will be generated **for each input BAM independently**. In the output file, the column "bam" indicates which input BAM the haplotypic counts correspond to.
 
 **Useful files**
 
 The specific features to produce haplotypic counts for must be provided in BED format. This is most often genes. A file containing coordinates for ensembl hg19 genes is included here for convenience:
 
-* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/hg19_ensembl.bed.gz
-* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/hg19_ensembl.chr.bed.gz
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_ensembl.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_ensembl.chr.bed.gz
 
 # Arguments
 ## Required
@@ -25,13 +25,13 @@ The specific features to produce haplotypic counts for must be provided in BED f
 
 ## Optional
 * **--id_separator** _(\_)_ - Separator used for generating unique variant IDs when phASER was run.
-* **--min_cov** _(1)_ - Minimum total coverage for a feature to be outputted.
 * **--gw_cutoff** _(0.9)_ - Minimum genome wide phase confidence for phASER haplotype blocks.
-* **--no_gw_phase** _(0)_ - Only use the haplotype block or SNP with maximum coverage per gene. Required if input VCF to phASER was unphased, --gw_cutoff will be ignored. NOTE with this option phasing between genes is not preserved, IE which haplotype A/B is arbitrary and inconsistent between genes (0,1).
+* **--min_cov** _(0)_ - Minimum total coverage for a feature to be outputted.
+* **--min_haplo_maf** _(0)_ - The minimum MAF used to phase a haplotype for it to be considered genome wide phased when generating gene level counts. Setting this number higher will result in more confident phasing if genotypes were population prephased. Value must be between 0 and 0.5.
 
 # Output File
 
-Contains the haplotype counts (A = genome wide haplotype 0, B = genome wide haplotype 1) for each feature. Note that because global haplotypes are used counts between features can even be compared. For example for two features on the same chromosome, reads from haplotype A for each would have come from the same DNA molecule.
+Contains the haplotype counts (A = genome wide haplotype 0, B = genome wide haplotype 1) for each feature, for each input BAM. The column "gw_phased" indicates if a feature is genome wide phased, meaning that for two features that are both genome wide phased, reads from haplotype A for each would have come from the same DNA molecule.
 
 * 1 - **contig** - Feature contig.
 * 2 - **start** - Feature start (0 based).
@@ -43,3 +43,5 @@ Contains the haplotype counts (A = genome wide haplotype 0, B = genome wide hapl
 * 8 - **log2_aFC** - Effect size for the allelic imbalance reported as allelic fold change (log2(aCount/bCount)) defined in our [paper](http://biorxiv.org/content/early/2016/09/30/078717).
 * 9 - **n_variants** - Number of variants with allelic data in this feature.
 * 10 - **variants** - List of variants with allelic data in this feature (contig_position_ref_alt).
+* 11 - **gw_phased** - The feature is genome wide phased, meaning that for two features that are both genome wide phased, reads from haplotype A for each would have come from the same DNA molecule (0,1).
+* 12 - **bam** - Input BAM used when running phASER that these counts correspond to.
