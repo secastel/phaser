@@ -39,17 +39,17 @@ python2.7 phaser.py --vcf NA06986.vcf.gz --bam NA06986.2.M_111215_4.bam --paired
 
 We suggest that you exclude variants in HLA genes using the "--blacklist" argument becuase of the high mapping error rate in these genes. A file containing coordinates for hg19 is included here for convenience:
 
-* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/hg19_hla.bed.gz
-* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/hg19_hla.chr.bed.gz
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_hla.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_hla.chr.bed.gz
 
 If your goal is to do gene level allelic expression analysis, you may want to consider using the "--haplo_count_blacklist" argument, which can exclude known problem sites from haplotypic counts. If you have not taken any percautions to deal with allelic mapping bias, we suggest you exclude sites with known bias, as outlined in [Castel et al](http://genomebiology.biomedcentral.com/articles/10.1186/s13059-015-0762-6). A file containing coordinates for hg19 is included here for convenience: 
 
-* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/hg19_haplo_count_blacklist.bed.gz
-* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/hg19_haplo_count_blacklist.chr.bed.gz
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_haplo_count_blacklist.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_haplo_count_blacklist.chr.bed.gz
 
 **Combining data across sequencing run types**
 
-By default, the haplotypic counts produced by phASER are summed across all of the input libraries. This means that if you used, for example, both DNA and RNA input libraries, the counts produced in o.haplotypic_counts.txt would not be useful for allelic expression studies. In such cases the "--haplo_count_bam" argument can be used to specify the libraries that should be used to generate haplotypic counts.
+All input BAMs will be used to generate haplotypes and phase variants, so they must all have arisen from the same genome or individual. Haplotypic counts are produced separately for each input BAM in in o.haplotypic_counts.txt, and stay separated when phaser_gene_ae.py is run. You can exclude BAMs from being outputted in o.haplotypic_counts.txt, for example those that are DNA-seq based, using the "--haplo_count_bam_exclude" argument. If you want to combine counts from across BAMs, merge the BAMs beforehand and include the merged BAM as a single input to phASER.
 
 # Arguments
 ## Required
@@ -63,7 +63,7 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 
 # Optional
 * **--python_string** _(python2.7)_ - Command to use when calling python, required for running read variant mapping script.
-* **--haplo_count_bam** _()_ - Comma separated list of BAMs to use when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank will use all libraries for counts, otherwise will only use the libraries specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...
+* **--haplo_count_bam_exclude** _()_ - Comma separated list of BAMs to exclude when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank haplotypic counts will be generated for all input BAMs, otherwise will they will not be generated for the BAMs specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...
 * **--haplo_count_blacklist** _()_ - BED file containing genomic intervals to be excluded from haplotypic counts. Reads from any variants which lie within these regions will not be counted for haplotypic counts. This will not affect phasing.
 * **--cc_threshold** _(0.01)_ - Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration p-value lower than this threshold will be removed.
 * **--isize** _(0)_ - Maximum allowed insert size for read pairs. Can be a comma separated list, each value corresponding to a max isize for a file in the input BAM list. Useful in cases when using both for example DNA and RNA libraries which having different expected insert sizes. Set to 0 for no maximum size.
@@ -75,13 +75,11 @@ By default, the haplotypic counts produced by phASER are summed across all of th
 * **--output_read_ids** _(0)_ - Output read IDs in the coverage files (0,1).
 * **--remove_dups** _(1)_ - Remove duplicate reads from all analyses (0,1).
 * **--pass_only** _(1)_ - Only use variants labled with PASS in the VCF filter field (0,1).
-* **--min_cov** _(0)_ - Minimum total coverage level before outputting haplotypic counts.
 * **--unphased_vars** _(1)_ - Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1). **NOTE** if you intend to run phASER Gene AE this must be enabled.
 * **--chr_prefix** _()_ - Add this string to the begining of the VCF contig name. For example set to 'chr' if VCF contig is listed as '1' and bam reference is 'chr1'.
 
 ## Genome Wide Phasing
 * **--gw_phase_method** _(0)_ - Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.
-* **--gw_af_vcf** _()_ - VCF with allele frequencies from the population which was used to do the phasing. If left blank it will look for an allele frequency in the input VCF (--vcf).
 * **--gw_af_field** _('AF')_ - Field from --gw_af_vcf to use for allele frequency.
 * **--gw_phase_vcf** _(0)_ - Replace GT field of output VCF using phASER genome wide phase. 0: do not replace; 1: replace when gw_confidence >= --gw_phase_vcf_min_confidence; 2: as in (1), but in addition replace with haplotype block phase when gw_confidence < --gw_phase_vcf_min_confidence and include PS field. See --gw_phase_method for options.
 * **--gw_phase_vcf_min_confidence** _(0.90)_ - If replacing GT field in VCF only replace when phASER haplotype gw_confidence >= this value.
@@ -164,11 +162,19 @@ Contains the number of unique reads that map to each haplotype for all phased ha
 * 3 - **stop** - Stop position of haplotype (1 based).
 * 4 - **variants** - Comma separated list of variant IDs phased in the haplotype.
 * 5 - **variantCount** - Number of variants contained in the haplotype.
-* 6 - **haplotypeA** - Comma separated list of alleles found on haplotype A.
-* 7 - **aCount** - Number of unique reads mapping to haplotype A.
-* 8 - **haplotypeB** - Comma separated list of alleles found on haplotype B.
-* 9 - **bCount** - Number of unique reads mapping to haplotype B.
-* 10 - **totalCount** - Total number of unique reads covering this haplotype (aCount + bCount).
+* 6 - **variantsBlacklisted** - Comma separated list of variant IDs whose counts were not used to do being blacklisted.
+* 7 - **variantCountBlacklisted** - Number of variants that were blacklisted
+* 8 - **haplotypeA** - Comma separated list of alleles found on haplotype A.
+* 9 - **aCount** - Number of unique reads mapping to haplotype A.
+* 10 - **haplotypeB** - Comma separated list of alleles found on haplotype B.
+* 11 - **bCount** - Number of unique reads mapping to haplotype B.
+* 12 - **totalCount** - Total number of unique reads covering this haplotype (aCount + bCount).
+* 13 - **blockGWPhase** - The genome wide phase of this haplotype block.
+* 14 - **gwStat** - phASER calculated genome wide phase statistic for this block.
+* 15 - **max_haplo_maf** - Maximum variant MAF of all variants phased in this haplotype block.
+* 16 - **bam** - Name of input BAM. If multiple input BAMs were used, then data will be separated for each BAM.
+* 17 - **aReads** - Haplotype read indices mapping to each variant on haplotype A.
+* 18 - **bReads** - Haplotype read indices mapping to each variant on haplotype B.
 
 ## *out_prefix*.variant_connections.txt
 
