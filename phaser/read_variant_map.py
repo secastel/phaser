@@ -68,7 +68,7 @@ def do_read_variant_map(variant_table, baseq, o, splice, isize_cutoff):
 					if line_variant.chr != read_chr:
 						if line_variant.chr not in contigs:
 							print("Error, VCF and BAM contigs do not match VCF = %s BAM = %s"%(line_variant.chr,read_chr));
-							quit();
+							sys.exit(1)
 						else:
 							vindex = contigs.index(line_variant.chr);
 							bindex = contigs.index(read_chr);

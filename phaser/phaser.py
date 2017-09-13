@@ -1789,7 +1789,7 @@ def fun_flush_print(text):
 
 def fatal_error(text):
 	fun_flush_print("     FATAL ERROR: "+text);
-	quit();
+	sys.exit(1)
 
 def print_debug(text):
 	if args.debug == 1:
