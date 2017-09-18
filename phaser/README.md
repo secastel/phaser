@@ -143,7 +143,8 @@ This file contains the allele configuration for each variant where a phase could
 
 ## *out_prefix*.allelic_counts.txt
 
-Contains reference and alternative read counts for each heterozygous variant used for phasing. Format is the same as the [GATK ASEReadCounter](https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_rnaseq_ASEReadCounter.php) and [allelecounter](https://github.com/secastel/allelecounter) outputs. If --min_cov is set only includes variants where totalCount ≥ min_cov.
+Contains reference and alternative read counts for each heterozygous variant used for phasing. Format is the same as the [GATK ASEReadCounter](https://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_gatk_tools_walkers_rnaseq_ASEReadCounter.php) and [allelecounter](https://github.com/secastel/allelecounter) outputs.
+
 * 1 - **contig** - Contig variant is found on.
 * 2 - **position** - Position of variant, as per the VCF (1 based).
 * 3 - **variantID** - ID of the variant. If --unique_ids enabled this will be the generated ID.
