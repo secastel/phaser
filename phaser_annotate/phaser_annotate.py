@@ -295,7 +295,7 @@ def get_variant_cadd(input):
 	gene_list = [];
 
 	# this turns out to be slower than the solution below
-	#records = subprocess.check_output("tabix "+args.cadd_file+" "+chr+":"+str(pos-1)+"-"+str(pos), shell=True).split("\n");
+	#records = subprocess.check_output("set -euo pipefail && "+"tabix "+args.cadd_file+" "+chr+":"+str(pos-1)+"-"+str(pos), shell=True, executable='/bin/bash').split("\n");
 
 	# initialize CADD retrieval
 	# have to do this for every variant because of problem with pysam

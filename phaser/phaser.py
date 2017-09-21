@@ -15,7 +15,7 @@ import math;
 import copy;
 
 def main():
-	#Arguments passed 
+	#Arguments passed
 	parser = argparse.ArgumentParser()
 	# required
 	parser.add_argument("--bam", help="Indexed BAMs (comma separated) containing aligned reads", required = True)
@@ -25,7 +25,7 @@ def main():
 	parser.add_argument("--baseq", type=int, help="Minimum baseq for bases to be used for phasing", required = True)
 	parser.add_argument("--paired_end", help="Sequencing data comes from a paired end assay (0,1). Can be a comma separated list, each value specifying whether sequencing data comes from a paired end assay for a file in the input BAM list. If set to true phASER will require all reads to have the 'read mapped in proper pair' flag.", required = True)
 	parser.add_argument("--o", help="Out prefix",required = True)
-	
+
 	# optional
 	parser.add_argument("--python_string", default="python2.7", help="Command to use when calling python, required for running read variant mapping script.")
 	parser.add_argument("--haplo_count_bam_exclude", default="", help="Comma separated list of BAMs to exclude when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank haplotypic counts will be generated for all input BAMs, otherwise will they will not be generated for the BAMs specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...")
@@ -41,19 +41,19 @@ def main():
 	parser.add_argument("--pass_only", type=int, default=1, help="Only use variants labled with PASS in the VCF filter field (0,1).")
 	parser.add_argument("--unphased_vars", type=int, default=1, help="Output unphased variants (singletons) in the haplotypic_counts and haplotypes files (0,1).")
 	parser.add_argument("--chr_prefix", type=str, default="", help="Add the string to the begining of the VCF contig name. For example set to 'chr' if VCF contig is listed as '1' and bam reference is 'chr1'.")
-	
+
 	# genome wide phasing
 	parser.add_argument("--gw_phase_method", type=int, default=0, help="Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.")
 	parser.add_argument("--gw_af_field", default="AF", help="Field from --vcf to use for allele frequency.")
 	parser.add_argument("--gw_phase_vcf", type=int, default=0, help="Replace GT field of output VCF using phASER genome wide phase. 0: do not replace; 1: replace when gw_confidence >= --gw_phase_vcf_min_confidence; 2: as in (1), but in addition replace with haplotype block phase when gw_confidence < --gw_phase_vcf_min_confidence and include PS field. See --gw_phase_method for options.")
 	parser.add_argument("--gw_phase_vcf_min_confidence", type=float, default=0.90, help="If replacing GT field in VCF only replace when phASER haplotype gw_confidence >= this value.")
-	
+
 	# performance
 	parser.add_argument("--threads", type=int, default=1, help="Maximum number of threads to use. Note the maximum thread count for some tasks is bounded by the data (for example 1 thread per contig for haplotype construction).")
 	parser.add_argument("--max_block_size", type=int, default=15, help="Maximum number of variants to phase at once. Number of haplotypes tested = 2 ^ # variants in block. Blocks larger than this will be split into sub blocks, phased, and then the best scoring sub blocks will be phased with each other.")
 	parser.add_argument("--temp_dir", default="", help="Location of temporary directory to use for storing files. If left blank will default to system temp dir. NOTE: potentially large files will be stored in this directory, so please ensure there is sufficient free space.")
 	parser.add_argument("--max_items_per_thread", type=int, default=100000, help="Maximum number of items that can be assigned to a single thread to process. NOTE: if this number is too high Python will stall when trying to join the pools.")
-	
+
 	# debug / development / reporting
 	parser.add_argument("--show_warning", type=int, default=0, help="Show warnings in stdout (0,1).")
 	parser.add_argument("--debug", type=int, default=0, help="Show debug mode messages (0,1).")
@@ -61,10 +61,10 @@ def main():
 	parser.add_argument("--unique_ids", type=int, default=0, help="Generate and output unique IDs instead of those provided in the VCF (0,1). NOTE: this should be used if your VCF does not contain a unique ID for each variant.")
 	parser.add_argument("--id_separator", default="_", help="Separator to use when generating unique IDs. Must not be found in contig name, and cannot include ':'.")
 	parser.add_argument("--output_network", default="", help="Output the haplotype connection network for the given variant.")
-	
+
 	global args;
 	args = parser.parse_args()
-	
+
 	#setup
 	version = "1.0.0";
 	fun_flush_print("");
@@ -73,32 +73,32 @@ def main():
 	fun_flush_print("  Author: Stephane Castel (scastel@nygenome.org)")
 	fun_flush_print("##################################################");
 	fun_flush_print("");
-	
+
 	global devnull;
 	devnull = open(os.devnull, 'w')
-	
+
 	# check for external dependencies
 	if check_dependency("samtools") == False: fatal_error("External dependency 'samtools' not installed.");
 	if check_dependency("bgzip") == False: fatal_error("External dependency 'bgzip' not installed.");
 	if check_dependency("tabix") == False: fatal_error("External dependency 'tabix' not installed.");
 	if check_dependency("bedtools") == False: fatal_error("External dependency 'bedtools' not installed.");
-	
+
 	if args.id_separator == ":" or args.id_separator == "": fatal_error("ID separator must not be ':' or blank. Please choose another separator that is not found in the contig names.");
 	contig_ban = [args.id_separator, ":"];
-	
+
 	if args.temp_dir != "":
 		tempfile.tempdir = args.temp_dir;
-	
+
 	# check for needed files
 	needed_files = ['call_read_variant_map.py','read_variant_map.py'];
 	for xfile in needed_files:
 		if os.path.isfile(return_script_path()+"/"+xfile) == False:
 			fatal_error("File %s is needed for phASER to run."%xfile);
-	
+
 	# check that setup has been run
 	if os.path.isfile(return_script_path()+"/"+'read_variant_map.so') == False:
 		fatal_error("Read Variant Mapper module must be compiled by running 'python setup.py build_ext --inplace'.");
-	
+
 	# check that all passed files actually exist
 	if os.path.isfile(args.vcf) == False:
 		fatal_error("VCF file does not exist.");
@@ -106,7 +106,7 @@ def main():
 		fatal_error("VCF file is not tabix indexed.");
 	if args.vcf.endswith(".gz") == False and args.vcf.endswith(".bgz") == False:
 		fatal_error("VCF must be gzipped.");
-		
+
 	check_files = args.bam.split(",");
 	for xfile in check_files:
 		if xfile != "":
@@ -114,68 +114,68 @@ def main():
 				fatal_error("File: %s not found."%(xfile));
 			if os.path.isfile(xfile+".bai") == False and os.path.isfile(xfile.replace(".bam",".bai")) == False:
 				fatal_error("Index for BAM %s not found. BAM files must be indexed, with naming 'sample.bam.bai'."%(xfile));
-	
+
 	check_files = [args.vcf,args.blacklist,args.haplo_count_blacklist];
-	
+
 	for xfile in check_files:
 		if xfile != "":
 			if os.path.isfile(xfile) == False:
 				fatal_error("File: %s not found."%(xfile));
-	
+
 	global haplo_count_bam_exclude;
-	
+
 	if args.haplo_count_bam_exclude != "":
 		# split and subtract 1 to make 0 based index
 		haplo_count_bam_exclude = [x-1 for x in map(int, args.haplo_count_bam_exclude.split(","))];
 	else:
 		haplo_count_bam_exclude = [];
-	
-	start_time = time.time();	
-	
+
+	start_time = time.time();
+
 	fun_flush_print("#1. Loading heterozygous variants into intervals...");
-	
+
 	# check to ensure sample is found in VCF
-	
+
 	map_sample_column = sample_column_map(args.vcf);
-	
+
 	global sample_column;
-	
+
 	if args.sample in map_sample_column:
 		sample_column = map_sample_column[args.sample];
 	else:
 		fatal_error("Sample not found in VCF.");
-	
+
 	# filter blacklisted variants if necessary, cut only sample column, filter for heterozygous sites
 	# decompress for intersection
 	if args.chr != "":
 		fun_flush_print("     restricting to chromosome '%s'..."%(args.chr));
-	
+
 	if args.chr != "":
 		decomp_str = "tabix -h "+args.vcf+" "+args.chr+":"
 	else:
 		decomp_str = "gunzip -c "+args.vcf;
-	
+
 	vcf_out = tempfile.NamedTemporaryFile(delete=False);
 	vcf_out.close();
 	vcf_path = vcf_out.name;
-		
+
 	if args.blacklist != "":
 		fun_flush_print("     removing blacklisted variants and processing VCF...");
 		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep -v '0|0\|1|1' | bedtools intersect -header -v -a stdin -b "+args.blacklist+" > "+vcf_out.name;
-		error_code = subprocess.call(call_str,shell=True,stderr=devnull);
+		error_code = subprocess.check_call("set -euo pipefail && "+call_str,shell=True, executable='/bin/bash',stderr=devnull)
 	else:
 		fun_flush_print("     processing VCF...");
 		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep -v '0|0\|1|1' > "+vcf_out.name;
-		error_code = subprocess.call(call_str,shell=True);
-	
+		error_code = subprocess.check_call("set -euo pipefail && "+call_str,shell=True, executable='/bin/bash')
+
 	if error_code != 0:
 		fatal_error("VCF filtering using subprocess.call \""+call_str+"\" exited with an error")
-	
+
 	# generate blacklisted variant list
 	set_haplo_blacklist = [];
 	if args.haplo_count_blacklist != "":
 		fun_flush_print("#1b. Loading haplotypic count blacklist intervals...");
-		raw_interval = subprocess.check_output("bedtools intersect -a "+vcf_path+" -b "+args.haplo_count_blacklist+" | cut -f 1-2", shell=True);
+		raw_interval = subprocess.check_output("set -euo pipefail && "+"bedtools intersect -a "+vcf_path+" -b "+args.haplo_count_blacklist+" | cut -f 1-2", shell=True, executable='/bin/bash')
 		for line in raw_interval.split("\n"):
 			columns = line.replace("\n","").split("\t");
 			if len(columns) > 1:
@@ -183,26 +183,26 @@ def main():
 				if args.chr == "" or args.chr == xchr:
 					pos = int(columns[1]);
 					set_haplo_blacklist.append(xchr+"_"+str(pos));
-	
+
 	set_haplo_blacklist = set(set_haplo_blacklist);
-	
+
 	## PARSE the VCF, put it into a format that can be used by the mapper
 	## one thread per chromosome
-	
+
 	stream_vcf = open(vcf_path, "r");
 	mapper_out = tempfile.NamedTemporaryFile(delete=False);
 	bed_out = tempfile.NamedTemporaryFile(delete=False);
 	het_count = 0;
 	total_indels_excluded = 0;
 	unphased_count = 0;
-	
+
 	fun_flush_print("     creating variant mapping table...");
-	
+
 	gt_index = -1;
-	
+
 	chromosome_pool = {};
 	filter_count = 0;
-	
+
 	for line in stream_vcf:
 		vcf_columns = line.rstrip().split("\t");
 		if line.startswith("#") == False:
@@ -225,7 +225,7 @@ def main():
 							if "/" in xgeno:
 								xgeno.remove("/");
 								unphased = True;
-			
+
 							if len(set(xgeno)) > 1:
 								filters = filter.split(";");
 								if args.pass_only == 0 or "PASS" in filters:
@@ -236,42 +236,42 @@ def main():
 									filter_count += 1;
 					else:
 						print_warning("Genotype, defined by GT not found in input VCF for variant %s."%(vcf_columns[2]));
-						
+
 	stream_vcf.close();
 	bed_out.close();
 	mapper_out.close();
-	
+
 	pool_input = [];
 	for chrom in chromosome_pool.keys():
 		pool_input.append([chrom,chromosome_pool[chrom]]);
-	
+
 	global temp_files;
 	temp_files = [];
 	pool_output = parallelize(generate_mapping_table, pool_input);
-	
+
 	# clear memory
 	del pool_input;
 	del chromosome_pool;
-	
+
 	mapping_files = [];
-	
+
 	het_count = 0;
 	total_indels_excluded = 0;
 	for output in pool_output:
 		mapping_files.append([output[0],output[3],output[4]]);
 		het_count += output[1];
 		total_indels_excluded += output[2];
-		
+
 	fun_flush_print("          %d heterozygous sites being used for phasing (%d filtered, %d indels excluded, %d unphased)"%(het_count,filter_count,total_indels_excluded,unphased_count));
-	
+
 	if het_count == 0:
 		fatal_error("No heterozygous sites that passed all filters were included in the analysis, phASER cannot continue. Check blacklist and pass_only arguments.");
-	
+
 	fun_flush_print("#2. Retrieving reads that overlap heterozygous sites...");
-	
+
 	#works with multiple input bams
 	bam_list = args.bam.split(",");
-	
+
 	# generate a list of bam names but don't allow any two to have the same ids
 	file_names = [os.path.basename(xbam).replace(".bam","") for xbam in bam_list];
 
@@ -291,7 +291,7 @@ def main():
 		mapq_list = mapq_list * len(bam_list);
 	elif len(mapq_list) != len(bam_list):
 		fatal_error("Number of mapq values and input BAMs does not match. Supply either one mapq to be used for all BAMs or one mapq per input BAM.");
-	
+
 	#isize
 	isize_list = args.isize.split(",");
 	if len(isize_list) == 1 and len(bam_list) > 1:
@@ -306,7 +306,7 @@ def main():
 		paired_end_list = paired_end_list * len(bam_list);
 	elif len(paired_end_list) != len(bam_list):
 		fatal_error ("Number of paired_end values and input BAMs does not match. Supply either one paired_end to be used for all BAMs or one paired_end per input BAM.");
-	
+
 	#now get bam reads that overlap het sites using SAMTOOLS
 	samtools_arg_list=[];
 	# remove dups if necessary, and only include properly paired read (ie in correct orientation)
@@ -317,46 +317,46 @@ def main():
 		if int(i) == 1:
 			samtools_arg += "-f 2"
 		samtools_arg_list.append(samtools_arg)
-	
+
 	global dict_variant_reads;
 	dict_variant_reads = {};
-	
+
 	global read_vars;
 	read_vars = {};
-	
+
 	global bam_index;
 	bam_index = 0;
-	
+
 	total_reads = 0;
-	
+
 	for samtools_arg, bam, mapq, isize in zip(samtools_arg_list, bam_list, mapq_list, isize_list):
 		fun_flush_print("     file: %s"%(bam));
 		fun_flush_print("          minimum mapq: %s"%(mapq));
-		
+
 		# use the read variant mapping script to map reads to alleles
 		fun_flush_print("          mapping reads to variants...");
 		pool_input = [x + [samtools_arg,bam,mapq,isize] for x in mapping_files];
 		result_files = parallelize(call_mapping_script, pool_input);
 
 		# process the result
-		
+
 		# A determine if we need to calculate alignment score cutoff
 		fun_flush_print("          processing mapped reads...");
-		
+
 		global use_as_cutoff;
 		global as_cutoff;
-	
+
 		use_as_cutoff = False;
-		
+
 		if args.as_q_cutoff > 0:
-			alignment_scores = map(int,[x for x in subprocess.check_output("cut -f 5 "+" ".join(result_files), shell=True).split("\n") if x != ""]);
+			alignment_scores = map(int,[x for x in subprocess.check_output("set -euo pipefail && "+"cut -f 5 "+" ".join(result_files), shell=True, executable='/bin/bash').split("\n") if x != ""]);
 			if len(alignment_scores) == 0:
 				fun_flush_print("          no alignment score value found in reads, cannot use cutoff");
 			else:
 				as_cutoff = numpy.percentile(alignment_scores,args.as_q_cutoff*100);
 				use_as_cutoff = True;
 				fun_flush_print("          using alignment score cutoff of %d"%(as_cutoff));
-		
+
 		# B now process variant read overlaps
 		pool_output = parallelize(process_mapping_result, result_files);
 		for output in pool_output:
@@ -373,66 +373,66 @@ def main():
 							else:
 								dict_variant_reads[variant]['haplo_reads'][xallele][xbam] = output[0][variant]['haplo_reads'][xallele][xbam]
 					dict_variant_reads[variant]['other_reads'] += output[0][variant]['other_reads'];
-			
+
 		for output in pool_output:
 			if output[3] not in read_vars: read_vars[output[3]] = {};
-			
+
 		for output in pool_output:
 			for read in output[1]:
 				if variant not in read_vars[output[3]]:
 					read_vars[output[3]][read] = output[1][read];
 				else:
 					read_vars[output[3]][read]  += output[1][read];
-		
+
 		bam_reads = 0;
 		for output in pool_output:
 			total_reads += output[2];
 			bam_reads += output[2];
-		
+
 		del pool_output;
-		
+
 		fun_flush_print("          retrieved %d reads"%(bam_reads));
 		bam_index += 1;
-		
+
 		# delete temp mapping files
 		for xfile in result_files:
 			os.remove(xfile);
-	
+
 	#cleanup temp files
 	os.remove(mapper_out.name);
 	os.remove(bed_out.name);
 	os.remove(vcf_out.name);
-	
+
 	for xfile in temp_files:
 		os.remove(xfile);
-	
+
 	fun_flush_print("#3. Identifying connected variants...");
 	fun_flush_print("     calculating sequencing noise level...");
-	
+
 	# calculate noise level
 	base_match_count = 0;
 	base_mismatch_count = 0;
-	
+
 	for variant in dict_variant_reads:
 		mis_matches = 0;
-		
+
 		mis_matches = len(dict_variant_reads[variant]['other_reads']);
 		matches = sum([len(x) for x in dict_variant_reads[variant]['reads']]);
-			
+
 		# require other bases to be < 5% of total coverage for this variant
 		# protects against genotyping errors
 		if matches > 0 and (float(mis_matches) / float(mis_matches+matches)) < 0.05:
 			base_match_count += matches;
 			base_mismatch_count += mis_matches;
-	
+
 	if base_match_count == 0:
 		fatal_error("No reads could be matched to variants. Please double check your settings and input files. Common reasons for this occurring include: 1) MAPQ or BASEQ set too conservatively 2) BAM and VCF have different chromosome names (IE 'chr1' vs '1').");
-	
+
 	# probability of generating a random base
 	global noise_e;
 	noise_e = (float(base_mismatch_count) / (float(base_match_count+base_mismatch_count)*2));
 	fun_flush_print("     sequencing noise level estimated at %f"%(noise_e));
-	
+
 	# premake read sets for faster comparison
 	fun_flush_print("     creating read sets...");
 	for var_id in dict_variant_reads:
@@ -446,24 +446,24 @@ def main():
 	# dictionary tells you what variants are connected
 	fun_flush_print("     generating read connectivity map...");
 	global dict_variant_overlap;
-	
+
 	dict_variant_overlap = {};
-	
+
 	pool_input = read_vars.keys();
 	pool_output = parallelize(generate_connectivity_map, pool_input);
-	
+
 	for output in pool_output:
 		dict_variant_overlap.update(output);
-	
+
 	# clear memory
 	del pool_output;
 	del read_vars;
-	
+
 	# make sets of overlaps
 	for chr in dict_variant_overlap:
 		for variant in dict_variant_overlap[chr]:
 			dict_variant_overlap[chr][variant] = set(dict_variant_overlap[chr][variant]);
-	
+
 	## now run the test to determine if the number of reads with conflicting connections is
 	## higher than noise for a given variant pair.
 	## if so these two variants will be disconnected, so that they won't be used for haplotype construction
@@ -479,19 +479,19 @@ def main():
 				if key1 not in tested_connections and key2 not in tested_connections:
 					pool_input.append([chr,variant_a,variant_b]);
 					tested_connections.add(key1);
-	
+
 	pool_output = parallelize(test_variant_connection, pool_input);
-	
+
 	out_stream = open(args.o+".variant_connections.txt","w");
 	out_stream.write("variant_a\tvariant_b\tsupporting_connections\ttotal_connections\tconflicting_configuration_p\tphase_concordant\n");
-	
+
 	dict_allele_connections = {};
-	
+
 	# remove all those connections which failed
 	c_dropped = 0;
 	for connection in pool_output:
 		chr,variant_a,variant_b,conflicting_config_p,c_supporting,c_total,phase_concordant,chosen_config = connection;
-		
+
 		# if the number of conflicting reads is more than would be expected from noise, then disconnect these two variants
 		# they will not be used for haplotype construction
 		out_stream.write("\t".join(map(str,[variant_a,variant_b,c_supporting,c_total,conflicting_config_p,phase_concordant]))+"\n");
@@ -499,13 +499,13 @@ def main():
 			#print("%s	%s"%(variant_a,variant_b));
 			dict_variant_overlap[chr][variant_a].remove(variant_b);
 			dict_variant_overlap[chr][variant_b].remove(variant_a);
-		
+
 			# if these variants have no other connections remove them from overlap dictionary
 			if len(dict_variant_overlap[chr][variant_a]) == 0:
 				del dict_variant_overlap[chr][variant_a];
 			if len(dict_variant_overlap[chr][variant_b]) == 0:
 				del dict_variant_overlap[chr][variant_b];
-		
+
 			c_dropped += 1;
 		else:
 			# didn't drop record the specific allele connections
@@ -513,7 +513,7 @@ def main():
 			if variant_a+":1" not in dict_allele_connections: dict_allele_connections[variant_a+":1"] = set([]);
 			if variant_b+":0" not in dict_allele_connections: dict_allele_connections[variant_b+":0"] = set([]);
 			if variant_b+":1" not in dict_allele_connections: dict_allele_connections[variant_b+":1"] = set([]);
-			
+
 			if chosen_config == 0:
 				# 0 - 0 / 1 - 1
 				dict_allele_connections[variant_a+":0"].add(variant_b+":0");
@@ -526,38 +526,38 @@ def main():
 				dict_allele_connections[variant_b+":0"].add(variant_a+":1");
 				dict_allele_connections[variant_a+":1"].add(variant_b+":0");
 				dict_allele_connections[variant_b+":1"].add(variant_a+":0");
-				
+
 
 	out_stream.close();
 
 	fun_flush_print("     %d variant connections dropped because of conflicting configurations (threshold = %f)"%(c_dropped,args.cc_threshold));
-	
+
 	# output the coverage level per snp
 	# same format as GATK tool:
 	stream_out = open(args.o+".allelic_counts.txt","w");
 	stream_out.write("contig	position	variantID	refAllele	altAllele	refCount	altCount	totalCount\n");
 	covered_count = 0;
-	
+
 	for variant in dict_variant_reads:
 		snp_dict = dict_variant_reads[variant];
-		
+
 		ref_reads = len(set(snp_dict['reads'][0]));
 		alt_reads = len(set(snp_dict['reads'][1]));
 		if ref_reads+alt_reads > 0:
 			covered_count += 1;
 			stream_out.write("\t".join([snp_dict['chr'],str(snp_dict['pos']),variant,snp_dict['alleles'][0],snp_dict['alleles'][1],str(ref_reads),str(alt_reads),str(ref_reads+alt_reads)+"\n"]));
 	stream_out.close();
-	
+
 	fun_flush_print("     %d variants covered by at least 1 read"%(covered_count));
-	
+
 	# record the total number of hets
 	total_het_variants = len(dict_variant_reads.keys());
-	
+
 	remove_keys = [];
 	if args.unphased_vars == 0:
 		# clear all SNPs with no connections to others from the dictionary to free up memory
 		# if we don;t want to output unphased snps
-		
+
 		for variant in dict_variant_reads:
 			chr = dict_variant_reads[variant]['chr'];
 			if chr not in dict_variant_overlap:
@@ -569,25 +569,25 @@ def main():
 		for variant in dict_variant_reads:
 			if len(dict_variant_reads[variant]['reads'][0]) + len(dict_variant_reads[variant]['reads'][1]) == 0:
 				remove_keys.append(variant);
-	
+
 	for key in remove_keys:
 		del dict_variant_reads[key];
-		
+
 	print_debug("     removed %d variants from memory in cleanup"%(len(remove_keys)));
-	
+
 	# using only the overlapping SNP dictionary build haplotype blocks
 	fun_flush_print("#4. Identifying haplotype blocks...");
-	
+
 	block_haplotypes = [];
 	phased_vars = 0;
-	
+
 	pool_output = parallelize(build_haplotypes, dict_variant_overlap.values());
-	
+
 	for chr_haplotypes in pool_output:
 		for haplotype_block in chr_haplotypes:
 			block_haplotypes.append(haplotype_block);
 			phased_vars += len(haplotype_block);
-	
+
 	# now for each of the blocks identify the phasing with the most supporting reads
 	fun_flush_print("#5. Phasing blocks...");
 	pool_input = [];
@@ -603,7 +603,7 @@ def main():
 			if variant+":1" in dict_allele_connections: allele_connections[variant+":1"] = dict_allele_connections[variant+":1"]
 
 		pool_input.append([sort_var_ids(block),variant_connections,allele_connections]);
-	
+
 	pool_output = parallelize(phase_v3, pool_input);
 	final_haplotypes = [];
 	for output in pool_output:
@@ -613,34 +613,34 @@ def main():
 	#print(final_haplotypes);
 	del pool_output;
 	del pool_input;
-	
+
 	#pool_input = pool_split(args.threads, pool_input);
 	#pool_output = parallelize(phase_block_container, pool_input);
-	
+
 	#final_haplotypes = [];
 	#for blocks in pool_output:
 	#	for block in blocks:
 	#		for sub_block in block:
 	#			if len(sub_block) > 1:
 	#				final_haplotypes.append(sub_block);
-	
+
 	#del pool_output;
 	#del pool_input;
-	
-	fun_flush_print("#6. Outputting haplotypes...");	
-	
+
+	fun_flush_print("#6. Outputting haplotypes...");
+
 	stream_out_ase = open(args.o+".haplotypic_counts.txt","w");
 	ase_columns = ["contig","start","stop","variants","variantCount","variantsBlacklisted","variantCountBlacklisted","haplotypeA","haplotypeB","aCount","bCount","totalCount","blockGWPhase","gwStat","max_haplo_maf","bam","aReads","bReads"];
 	if args.output_read_ids == 1:
 		ase_columns += ["read_ids_a","read_ids_b"];
 	stream_out_ase.write("\t".join(ase_columns)+"\n");
-	
+
 	stream_out = open(args.o+".haplotypes.txt","w");
 	stream_out.write("\t".join(['contig','start','stop','length','variants','variant_ids','variant_alleles','reads_hap_a','reads_hap_b','reads_total','edges_supporting','edges_total','annotated_phase','phase_concordant','gw_phase','gw_confidence'])+"\n");
-	
+
 	stream_out_allele_configs = open(args.o+".allele_config.txt","w");
 	stream_out_allele_configs.write("\t".join(['variant_a','rsid_a','variant_b','rsid_b','configuration'])+"\n");
-	
+
 	global haplotype_lookup;
 	haplotype_lookup = {};
 	global haplotype_pvalue_lookup;
@@ -650,25 +650,25 @@ def main():
 	global haplotype_max_maf_lookup;
 	haplotype_max_maf_lookup = {};
 	all_variants = [];
-	
+
 	block_index = 0;
-	
-	
+
+
 	for block in final_haplotypes:
 		#get all unique variants
 		block_index += 1;
 		variants = [x.split(":")[0] for x in block];
 		variants = sort_var_ids(variants);
-		
+
 		all_variants += variants;
-		
+
 		haplotype_a = "".join([x.split(":")[1] for x in block]);
 		haplotype_b = "".join([str(int(not int(x))) for x in haplotype_a]);
-		
+
 		# determine number of supporting edges vs total edges for this haplotype
 		supporting_connections = 0;
 		total_connections = 0;
-		
+
 		for allele in block:
 			variant = allele.split(":")[0];
 			for other_allele in block:
@@ -677,51 +677,51 @@ def main():
 					# check if the configuration supports the phasing
 					if other_allele in dict_allele_connections[allele]:
 						supporting_connections += 1;
-					
+
 					if other_variant+":0" in dict_allele_connections[allele]:
 						total_connections += 1;
 					if other_variant+":1" in dict_allele_connections[allele]:
 						total_connections += 1;
-		
+
 		supporting_connections = supporting_connections / 2;
 		total_connections = total_connections / 2;
-		
+
 		if args.unique_ids == 0:
 			rsids = [dict_variant_reads[x]['rsid'] for x in variants];
 		else:
 			rsids = variants;
-				
+
 		chrs = [dict_variant_reads[x]['chr'] for x in variants];
 		positions = map(int, [dict_variant_reads[x]['pos'] for x in variants]);
-		
+
 		hap_p = 0;
 		haplotype_pvalue_lookup[list_to_string(variants)] = hap_p;
-		
-		for var_index in range(0, len(variants)):	
+
+		for var_index in range(0, len(variants)):
 			id = variants[var_index];
 			haplotype_lookup[id] = [variants, haplotype_a[var_index]+"|"+haplotype_b[var_index],block_index];
-			
+
 		alleles = [[],[]];
 		phases = [[],[]];
 		set_reads = [[],[]];
 		hap_counts = [0,0];
-		
+
 		for hap_index in range(0,2):
 			hap_x = [haplotype_a, haplotype_b][hap_index];
-			
+
 			for var_index in range(0, len(variants)):
 				id = variants[var_index];
 				allele = dict_variant_reads[id]['alleles'][int(hap_x[var_index])];
 				alleles[hap_index].append(allele);
 				phases[hap_index].append(get_allele_phase(allele,dict_variant_reads[id]));
-				
+
 				allele_index = dict_variant_reads[id]['alleles'].index(allele);
-				
+
 				set_reads[hap_index] += dict_variant_reads[id]['reads'][allele_index];
-				
+
 			set_reads[hap_index] = list(set(set_reads[hap_index]));
 			hap_counts[hap_index] = len(set_reads[hap_index]);
-			
+
 		# determine if phasing is completely concordant
 		# don't include variants whose phase was unknown in the original VCF
 		use_phases = [x for x in phases[0] if str(x) != "nan"];
@@ -729,25 +729,25 @@ def main():
 			phase_concordant = 1;
 		else:
 			phase_concordant = 0;
-		
+
 		phase_string = ["",""]
 		phase_string[0] = "".join([str(x).replace("nan", "-") for x in phases[0]]);
 		phase_string[1] = "".join([str(x).replace("nan", "-") for x in phases[1]]);
-		
+
 		### GENOME WIDE PHASING
 		# how many population phased variants do we have in this hap
 		nan_strip = [int(x) for x in phases[0] if x >= 0];
-		
+
 		# by default corrected is the same as population
 		corrected_phases = [phases[0],phases[1]];
 		cor_phase_stat = 0.5;
 		maf_phased = False;
-		
+
 		# get the MAF for each variant in haplotype
 		haplotype_mafs = [];
 		for variant in variants:
 			haplotype_mafs.append(dict_variant_reads[variant]['maf']);
-				
+
 		if len(nan_strip) > 0:
 			# if setting is on determine genome wide phasing
 			# if completely concordant don't need to do anything
@@ -760,7 +760,7 @@ def main():
 			elif args.gw_phase_method == 0:
 				# phase using most common phase
 				cor_phase_stat = numpy.mean(nan_strip);
-		
+
 				if cor_phase_stat < 0.5:
 					corrected_phases = [[0]*len(variants),[1]*len(variants)];
 				elif cor_phase_stat > 0.5:
@@ -768,15 +768,15 @@ def main():
 				else:
 					# no consensus, use population phasing
 					print_warning("No GW phasing consensus for %s using method 1"%(str(variants)));
-				
+
 				cor_phase_stat = max([cor_phase_stat, 1-cor_phase_stat]);
-					
+
 			elif args.gw_phase_method == 1:
 				# phase using MAF weighted phase
 				# we need the mafs for this, so we need to look them up
 				# Step 2 get allele frequencies
 				# first get the allele frequency for each of the variants
-						
+
 				if len(haplotype_mafs) == len(variants):
 					phase_support = [0,0];
 					# now we need to weight the phasing by their MAF
@@ -785,7 +785,7 @@ def main():
 							phase_support[0] += maf;
 						elif phase == 1:
 							phase_support[1] += maf;
-				
+
 					# now select the phase with the most MAF support
 					if sum(phase_support) > 0:
 						cor_phase_stat = max(phase_support) / sum(phase_support);
@@ -803,7 +803,7 @@ def main():
 						# variants are not found in AF VCF but they still have  phase, try using other approach
 						# phase using most common phase
 						cor_phase_stat = numpy.mean(nan_strip);
-	
+
 						if cor_phase_stat < 0.5:
 							corrected_phases = [[0]*len(variants),[1]*len(variants)];
 						elif cor_phase_stat > 0.5:
@@ -811,38 +811,38 @@ def main():
 						else:
 							# no consensus, use population phasing
 							print_warning("No GW phasing consensus for %s using method 1"%(str(variants)));
-			
+
 						cor_phase_stat = max([cor_phase_stat, 1-cor_phase_stat]);
 				else:
 					print_warning("GW phasing failed for %s"%(str(variants)));
-		
+
 		# save the stat for lookup when generating VCF
 		haplotype_gw_stat_lookup[list_to_string(variants)] = cor_phase_stat;
 		haplotype_max_maf_lookup[list_to_string(variants)] = max(haplotype_mafs);
-		
+
 		# update the variants with their corrected phases
 		for var_index in range(0,len(variants)):
 			variant = variants[var_index];
 			allele_index = dict_variant_reads[variant]['alleles'].index(alleles[0][var_index])
 			dict_variant_reads[variant]['gw_phase'][allele_index] = corrected_phases[0][var_index];
 			dict_variant_reads[variant]['gw_phase'][1-allele_index] = corrected_phases[1][var_index];
-		
+
 		corrected_phase_string = ["",""]
 		corrected_phase_string[0] = "".join([str(x).replace("nan", "-") for x in corrected_phases[0]]);
 		corrected_phase_string[1] = "".join([str(x).replace("nan", "-") for x in corrected_phases[1]]);
-		
+
 		## write the haplotype details
 		stream_out.write(str_join("\t",[chrs[0],min(positions),max(positions),max(positions)-min(positions),len(variants),list_to_string(rsids),list_to_string(alleles[0])+"|"+list_to_string(alleles[1]),hap_counts[0],hap_counts[1],sum(hap_counts),supporting_connections,total_connections,phase_string[0]+"|"+phase_string[1],phase_concordant,corrected_phase_string[0]+"|"+corrected_phase_string[1],cor_phase_stat])+"\n");
-		
+
 		#$ write ASE stats
-		
+
 		# generate haplotypic counts
 		for bam_i in range(0,len(bam_list)):
 			if bam_i not in haplo_count_bam_exclude:
 				bam_name = bam_names[bam_i]
 				set_hap_expr_reads = [[],[]];
 				hap_expr_counts = [0,0];
-				
+
 				used_alleles = [[],[]];
 				used_vars = [];
 				var_reads = [[],[]];
@@ -852,7 +852,7 @@ def main():
 
 				for hap_index in range(0,2):
 					hap_x = [haplotype_a, haplotype_b][hap_index];
-					
+
 					for var_index in range(0, len(variants)):
 						id = variants[var_index];
 						chrom = dict_variant_reads[id]['chr'];
@@ -863,10 +863,10 @@ def main():
 
 							allele = dict_variant_reads[id]['alleles'][int(hap_x[var_index])];
 							allele_index = dict_variant_reads[id]['alleles'].index(allele);
-							
+
 							if id not in used_vars: used_vars.append(id);
 							used_alleles[hap_index].append(allele);
-								
+
 							if bam_i in dict_variant_reads[id]['haplo_reads'][allele_index]:
 								var_reads[hap_index].append(dict_variant_reads[id]['haplo_reads'][allele_index][bam_i]);
 								set_hap_expr_reads[hap_index] += dict_variant_reads[id]['haplo_reads'][allele_index][bam_i];
@@ -874,10 +874,10 @@ def main():
 								var_reads[hap_index].append([]);
 						else:
 							blacklisted_vars.add(id);
-						
+
 					set_hap_expr_reads[hap_index] = list(set(set_hap_expr_reads[hap_index]));
 					hap_expr_counts[hap_index] = len(set_hap_expr_reads[hap_index]);
-				
+
 				hap_a_count = hap_expr_counts[0];
 				hap_b_count = hap_expr_counts[1]
 				hap_a_reads = set_hap_expr_reads[0];
@@ -893,7 +893,7 @@ def main():
 				elif corrected_phases[0][0] == 1:
 					# haplotype A = GW phase 1
 					out_block_gw_phase = "1|0";
-				
+
 				# record the reads that overlap each individual variant
 				for hap_index in range(0,2):
 					for var_index in range(0,len(used_vars)):
@@ -901,12 +901,12 @@ def main():
 						for xread in var_reads[hap_index][var_index]:
 							xvar_reads.append(list_hap_expr_reads[hap_index].index(xread));
 						hap_var_reads[hap_index].append(list_to_string(xvar_reads));
-				
+
 				# convert to string
 				hap_var_reads[0] = list_to_string(hap_var_reads[0],sep=";");
 				hap_var_reads[1] = list_to_string(hap_var_reads[1],sep=";");
 				total_cov = sum(hap_expr_counts);
-				
+
 				if total_cov > 0:
 					fields_out = [chrs[0],min(used_var_pos),max(used_var_pos),list_to_string(used_vars),len(used_vars),list_to_string(blacklisted_vars),len(blacklisted_vars),list_to_string(used_alleles[0]),list_to_string(used_alleles[1]),hap_a_count,hap_b_count,total_cov,out_block_gw_phase,cor_phase_stat];
 					if args.output_read_ids == 1:
@@ -914,7 +914,7 @@ def main():
 					fields_out += [str(max(haplotype_mafs)),bam_name];
 					fields_out += [hap_var_reads[0],hap_var_reads[1]];
 					stream_out_ase.write(str_join("\t",fields_out)+"\n");
-		
+
 		## OUTPUT THE NETWORK FOR A SPECIFIC HAPLOTYPE
 		if args.output_network in variants:
 			#hap_a_network = generate_hap_network([variants, haplotype_a])[0];
@@ -930,7 +930,7 @@ def main():
 					stream_out_network.write(list_to_string(item,"\t")+"\n");
 					nodes.append(item[0]);
 					nodes.append(item[1]);
-			
+
 			stream_out_network.close();
 			stream_out_network = open(args.o+".network.nodes.txt","w");
 			stream_out_network.write("id\tindex\tassigned_hap\n");
@@ -944,7 +944,7 @@ def main():
 					assigned_hap = "B";
 				stream_out_network.write(item+"\t"+str(var_index)+"\t"+assigned_hap+"\n");
 			stream_out_network.close()
-		
+
 		## OUTPUT allele configuration
 		for variant_a, allele_a in zip(variants, alleles[0]):
 			for variant_b, allele_b in zip(variants, alleles[1]):
@@ -959,20 +959,20 @@ def main():
 						a_config = "cis";
 					if a_config != "":
 						stream_out_allele_configs.write("\t".join([variant_a,dict_variant_reads[variant_a]['rsid'],variant_b,dict_variant_reads[variant_b]['rsid'],a_config])+"\n");
-		
+
 	#output read counts for unphased variants
 	if args.unphased_vars == 1:
 		singletons = set(dict_variant_reads.keys()) - set(all_variants);
-	
+
 		for variant in singletons:
 			dict_var = dict_variant_reads[variant];
 			chrom = dict_var['chr'];
 			pos = int(dict_var['pos']);
-			
-			
+
+
 			# check to see if variant is blacklisted
 			if chrom+"_"+str(pos) not in set_haplo_blacklist:
-				
+
 				for bam_i in range(0,len(bam_list)):
 					if bam_i not in haplo_count_bam_exclude:
 						bam_name = bam_names[bam_i];
@@ -989,7 +989,7 @@ def main():
 						else:
 							hap_b_count = 0;
 							hap_b_reads = [];
-						
+
 						total_cov = int(hap_a_count)+int(hap_b_count);
 						if total_cov > 0:
 							if "-" not in dict_var['phase']:
@@ -997,55 +997,55 @@ def main():
 							else:
 								phase_string = "0/1";
 							fields_out = [dict_var['chr'],str(dict_var['pos']),str(dict_var['pos']),variant,str(1),"",str(0),dict_var['alleles'][0],dict_var['alleles'][1],str(hap_a_count),str(hap_b_count),str(total_cov),phase_string,"1"];
-						
+
 							if args.output_read_ids == 1:
 								fields_out += [list_to_string(hap_a_reads),list_to_string(hap_b_reads)];
-					
+
 							fields_out += [str(dict_var['maf']),bam_name];
 							fields_out += ["",""];
 							stream_out_ase.write("\t".join(fields_out)+"\n");
-	
+
 		#output haplotypes for unphased variants (if enabled)
 		for variant in singletons:
 			dict_var = dict_variant_reads[variant];
 			total_cov = len(dict_var['read_set'][0])+len(dict_var['read_set'][1]);
-			
+
 			# make sure it is actually phased
 			if "-" not in dict_var['phase']:
 				phase_string = str(dict_var['phase'].index(dict_var['alleles'][0]))+"|"+str(dict_var['phase'].index(dict_var['alleles'][1]));
 			else:
 				phase_string = "-|-";
-			
+
 			if args.unique_ids == 0:
 				out_name = dict_var['rsid'];
 			else:
 				out_name = variant;
 
 			stream_out.write(dict_var['chr']+"\t"+str(dict_var['pos']-1)+"\t"+str(dict_var['pos'])+"\t"+str(1)+"\t"+str(1)+"\t"+out_name+"\t"+dict_var['alleles'][0]+"|"+dict_var['alleles'][1]+"\t"+str(len(dict_var['read_set'][0]))+"\t"+str(len(dict_var['read_set'][1]))+"\t"+str(total_cov)+"\t"+str(0)+"\t"+str(0)+"\t"+phase_string+"\t"+str(float('nan'))+"\t"+phase_string+"\t"+str(float('nan'))+"\n");
-			
+
 	stream_out.close();
 	stream_out_ase.close();
 	stream_out_allele_configs.close();
-	
+
 	# output VCF
 	if args.write_vcf == 1:
 		unphased_phased, phase_corrected = write_vcf();
-		
+
 	total_time = time.time() - start_time;
-	
+
 	fun_flush_print("COMPLETED using %d reads in %d seconds using %d threads"%(total_reads,total_time,args.threads));
 	fun_flush_print("     PHASED  %d of %d all variants (= %f) with at least one other variant"%(len(all_variants),het_count,float(len(all_variants))/float(het_count)));
 	if args.write_vcf == 1:
 		if unphased_count > 0:
 			fun_flush_print("     GENOME WIDE PHASED  %d of %d unphased variants (= %f)"%(unphased_phased,unphased_count,float(unphased_phased)/float(unphased_count)));
 		fun_flush_print("     GENOME WIDE PHASE CORRECTED  %d of %d variants (= %f)"%(phase_corrected,het_count,float(phase_corrected)/float(het_count)));
-				
+
 def generate_connectivity_map(chrom):
 	global read_vars;
 	global dict_variant_reads;
-	
+
 	dict_variant_overlap = {};
-	
+
 	for read_id in read_vars[chrom].keys():
 		overlapped_variants = read_vars[chrom][read_id];
 		for variant in overlapped_variants:
@@ -1058,7 +1058,7 @@ def generate_connectivity_map(chrom):
 					if var_chr not in dict_variant_overlap: dict_variant_overlap[var_chr] = {};
 					if variant not in dict_variant_overlap[var_chr]: dict_variant_overlap[var_chr][variant] = [];
 					dict_variant_overlap[var_chr][variant].append(other_variant);
-	
+
 	return(dict_variant_overlap);
 
 def process_mapping_result(input):
@@ -1066,14 +1066,14 @@ def process_mapping_result(input):
 	global as_cutoff;
 	global bam_index;
 	global haplo_count_bam_exclude;
-	
+
 	dict_variant_reads = {};
 	read_vars = {};
 	stream_in = open(input, "r");
 	total_reads = 0;
 	chrom = "";
 	mapped_reads = 0;
-	
+
 	for line in stream_in:
 		fields = line.rstrip().split("\t");
 		#read_name	variant_id	rs_id	read_allele	alignment_score	genotype	maf
@@ -1082,14 +1082,14 @@ def process_mapping_result(input):
 			var_id = fields[1];
 			chrom = var_id.split(args.id_separator)[0];
 			read_allele = fields[3];
-			
+
 			if var_id not in dict_variant_reads: dict_variant_reads[var_id] = generate_variant_dict(fields);
-			
+
 			if read_allele in dict_variant_reads[var_id]['alleles']:
 				# add to the quick lookup dictionary
 				if read_id not in read_vars: read_vars[read_id] = [];
 				read_vars[read_id].append(var_id);
-				
+
 				allele_index = dict_variant_reads[var_id]['alleles'].index(read_allele)
 				dict_variant_reads[var_id]['reads'][allele_index].append(read_id);
 				mapped_reads += 1;
@@ -1100,13 +1100,13 @@ def process_mapping_result(input):
 				dict_variant_reads[var_id]['other_reads'].append(read_id);
 			total_reads += 1;
 	stream_in.close();
-	
+
 	return([dict_variant_reads,read_vars,total_reads, chrom]);
-	
+
 def call_mapping_script(input):
 	global args;
 	global devnull;
-	
+
 	chrom = input[0];
 	bed_out = input[1];
 	mapper_out = input[2];
@@ -1114,54 +1114,54 @@ def call_mapping_script(input):
 	bam = input[4];
 	mapq = input[5];
 	isize = input[6];
-	
+
 	mapping_result = tempfile.NamedTemporaryFile(delete=False);
 	mapping_result.close();
-	
+
 	#Save error code from subprocess if not 0, file it writes is truncated and gives unexpected wrong results.
 	run_cmd = "samtools view -h "+bam+" '"+chrom+"': | samtools view -Sh "+samtools_arg+" -L "+bed_out+" -q "+mapq+" - | "+args.python_string+" "+return_script_path()+"/call_read_variant_map.py --baseq "+str(args.baseq)+" --splice 1 --isize_cutoff "+str(isize)+" --variant_table "+mapper_out+" --o "+mapping_result.name
-	error_code = subprocess.call(run_cmd, stdout=devnull, shell=True);
+	error_code = subprocess.check_call("set -euo pipefail && "+run_cmd, stdout=devnull, shell=True, executable='/bin/bash')
 	if error_code != 0:
 		raise RuntimeError("subprocess.call of call_read_variant_map.py exited with an error, with call: %s"%(run_cmd))
-		
+
 	fun_flush_print("               completed chromosome %s..."%(chrom));
-	
+
 	return(mapping_result.name);
 
 def generate_mapping_table(input):
 	global args;
 	global temp_files;
-	
+
 	chrom = input[0];
 	chrom = args.chr_prefix + chrom;
-	
+
 	vcf_lines = input[1];
 	bed_out = tempfile.NamedTemporaryFile(delete=False);
 	mapper_out = tempfile.NamedTemporaryFile(delete=False);
 	het_count = 0;
 	total_indels_excluded = 0;
-	
+
 	temp_files.append(bed_out.name);
 	temp_files.append(mapper_out.name);
-	
+
 	for vcf_columns in vcf_lines:
 		pos = vcf_columns[1];
 		rs_id = vcf_columns[2];
 		alt_alleles = vcf_columns[4].split(",");
 		all_alleles = [vcf_columns[3]] + alt_alleles;
 		unique_id = chrom+args.id_separator+pos+args.id_separator+(args.id_separator.join(all_alleles));
-		
+
 		geno_string = vcf_columns[9];
 		genotype = vcf_columns[10];
-		
+
 		maf = None;
 		if args.gw_phase_method == 1:
 			info_fields = annotation_to_dict(vcf_columns[7])
 			if args.gw_af_field in info_fields:
 				# make sure to get the right index if multi-allelic site
 				afs = map(float, info_fields[args.gw_af_field].split(","));
-				
-				# make sure that there are the same number of allele frequencies as alternative variants			
+
+				# make sure that there are the same number of allele frequencies as alternative variants
 				if len(afs) == len(alt_alleles):
 					use_afs = [];
 					for allele in list(genotype):
@@ -1170,29 +1170,29 @@ def generate_mapping_table(input):
 					# if there are multiple alternative alleles use the lowest MAF
 					if len(use_afs) > 0:
 						maf = min([min([afs[x],1-afs[x]]) for x in use_afs]);
-	
+
 		max_allele_size = max([len(x) for x in all_alleles]);
-	
+
 		if (max_allele_size == 1 or args.include_indels == 1):
 				mapper_out.write("\t".join([chrom,vcf_columns[1],unique_id,rs_id,",".join(all_alleles),str(len(vcf_columns[3])),geno_string, str(maf)])+"\n");
 				bed_out.write("\t".join([chrom,str(int(vcf_columns[1])-1),vcf_columns[1]])+"\n");
 				het_count += 1;
 		else:
 			total_indels_excluded += 1;
-				
+
 	bed_out.close();
 	mapper_out.close();
-	
+
 	return([chrom, het_count, total_indels_excluded, bed_out.name, mapper_out.name]);
 
 def return_script_path():
     return os.path.dirname(os.path.realpath(sys.argv[0]));
-    
+
 def generate_variant_dict(fields):
 	#read_name	variant_id	rs_id	read_allele	alignment_score	genotype	maf
 	id_split = fields[1].split(args.id_separator);
 	all_alleles = id_split[2:len(id_split)];
-	
+
 	genotype = list(fields[5]);
 	is_phased = 0;
 	if "|" in genotype:
@@ -1206,7 +1206,7 @@ def generate_variant_dict(fields):
 	for i in range(0,len(all_alleles)):
 		if str(i) in genotype:
 			ind_alleles.append(all_alleles[i]);
-	
+
 	# get phasing
 	phase = [];
 	if is_phased == 1:
@@ -1214,13 +1214,13 @@ def generate_variant_dict(fields):
 			phase.append(all_alleles[int(index)]);
 	else:
 		phase = ["-","-"];
-	
+
 	maf = fields[6];
 	try:
 		maf = float(maf);
 	except:
 		maf = 0;
-	
+
 	# if rsid is "." or "" then set rsID to the uniqueID
 	if fields[2] != "." and fields[2] != "":
 		rsid = fields[2];
@@ -1228,7 +1228,7 @@ def generate_variant_dict(fields):
 		rsid = fields[1];
 
 	return({"id":fields[1], "rsid":rsid,"ref":all_alleles[0],"chr":id_split[0],"pos":int(id_split[1]),"alleles":ind_alleles,"phase":phase, "gw_phase":phase, "maf":maf, "other_reads":[], "reads":[[] for i in range(len(ind_alleles))], "haplo_reads":[{} for i in range(len(ind_alleles))]});
-	
+
 def phase_block_container(input):
 	#stream_out = open(input[0],"w");
 	output = [];
@@ -1237,7 +1237,7 @@ def phase_block_container(input):
 	#for block in phase_block_result:
 	#	stream_out.write(",".join(block)+"\n");
 	#stream_out.close();
-	
+
 	return(output);
 
 def phase_block(input):
@@ -1246,13 +1246,13 @@ def phase_block(input):
 	variant_connections = copy.deepcopy(input[1]);
 	allele_connections = copy.deepcopy(input[2]);
 	largest_block = [];
-	
+
 	# first get all variants that have more than one connection
 	multi_connected_variants = [];
 	for variant in variant_connections:
 		if len(variant_connections[variant]) > 1:
 			multi_connected_variants.append(variant);
-	
+
 	# now see how many possible connections there are to remove
 	# can only remove connections between two multiconnected variants
 	removable_connections = [];
@@ -1262,10 +1262,10 @@ def phase_block(input):
 			if connection in multi_connected_variants:
 				if connection+"|"+variant not in removable_connections and variant+"|"+connection not in removable_connections:
 					removable_connections.append(variant+"|"+connection);
-	
+
 	remove_number = 0;
 	remove_connections = [""];
-	
+
 	while remove_number <= len(removable_connections):
 		# prune connections
 		# add first no connection removal
@@ -1276,23 +1276,23 @@ def phase_block(input):
 		else:
 			remove_connections += to_remove;
 		remove_number += 1;
-		
+
 	for remove in remove_connections:
 		remaining_hap_pool = copy.deepcopy(input[2]);
 		for remove_index in remove:
 			remove_keys = removable_connections[remove_index].split("|");
-		
+
 			if remove_keys[0]+":0" in remaining_hap_pool[remove_keys[1]+":0"]: remaining_hap_pool[remove_keys[1]+":0"].remove(remove_keys[0]+":0")
 			if remove_keys[0]+":1" in remaining_hap_pool[remove_keys[1]+":0"]: remaining_hap_pool[remove_keys[1]+":0"].remove(remove_keys[0]+":1")
 			if remove_keys[0]+":0" in remaining_hap_pool[remove_keys[1]+":1"]: remaining_hap_pool[remove_keys[1]+":1"].remove(remove_keys[0]+":0")
 			if remove_keys[0]+":1" in remaining_hap_pool[remove_keys[1]+":1"]: remaining_hap_pool[remove_keys[1]+":1"].remove(remove_keys[0]+":1")
-		
+
 			if remove_keys[1]+":0" in remaining_hap_pool[remove_keys[0]+":0"]: remaining_hap_pool[remove_keys[0]+":0"].remove(remove_keys[1]+":0")
 			if remove_keys[1]+":1" in remaining_hap_pool[remove_keys[0]+":0"]: remaining_hap_pool[remove_keys[0]+":0"].remove(remove_keys[1]+":1")
 			if remove_keys[1]+":0" in remaining_hap_pool[remove_keys[0]+":1"]: remaining_hap_pool[remove_keys[0]+":1"].remove(remove_keys[1]+":0")
 			if remove_keys[1]+":1" in remaining_hap_pool[remove_keys[0]+":1"]: remaining_hap_pool[remove_keys[0]+":1"].remove(remove_keys[1]+":1")
-		
-		set_remaining_hap_pool = set(remaining_hap_pool.keys());	
+
+		set_remaining_hap_pool = set(remaining_hap_pool.keys());
 		while len(remaining_hap_pool) > 0:
 			# this will construct many iterations of the same haplotype need to filter it out;
 			# start the process with a variant pair;
@@ -1308,16 +1308,16 @@ def phase_block(input):
 			set_remaining_hap_pool = result[2];
 			if len(new_hap) > len(largest_block) and test_loop_back(new_hap) == 0:
 				largest_block = new_hap;
-			
+
 		# check to see if we have a full haplotype
 		if len(largest_block) == len(variants):
 			return([largest_block]);
-		
+
 	# if we get here we failed to find a full block, so just return the best one and try to phase the remainder
 	# remove phased variants from connections
 	unphased_vars = [];
 	unphased_var_connections = {};
-	
+
 	for variant in variants:
 		if variant+":0" in largest_block or variant+":1" in largest_block:
 			del allele_connections[variant+":0"];
@@ -1332,7 +1332,7 @@ def phase_block(input):
 				for connection in variant_connections[variant]:
 					if connection+":0" not in largest_block and connection+":1" not in largest_block:
 						unphased_var_connections[variant].append(connection);
-					
+
 	#print(largest_block);
 	#print("FAILED TO RESOLVE HAPLOTYPE: %s"%(input[1]));
 	if len(unphased_vars) > 1:
@@ -1351,30 +1351,30 @@ def test_loop_back(block):
 	block = [x.split(":")[0] for x in block];
 	# count occurance of each variant
 	counts = [block.count(x) for x in set(block)];
-	
+
 	if max(counts) == 1:
 		return(0);
 	else:
 		return(1);
-		
+
 def test_variant_connection(input):
 	global noise_e;
 	global dict_variant_reads;
-	
+
 	chr, variant_a, variant_b = input;
-	
+
 	# there are only two possible configurations, determine evidence for each
 	# a[ref]b[ref] | a[alt]b[alt]
 	hap_config_a_support = len(dict_variant_reads[variant_a]['read_set'][0] & dict_variant_reads[variant_b]['read_set'][0]) + len(dict_variant_reads[variant_a]['read_set'][1] & dict_variant_reads[variant_b]['read_set'][1])
 	# a[ref]b[alt] | a[alt]b[ref]
 	hap_config_b_support = len(dict_variant_reads[variant_a]['read_set'][1] & dict_variant_reads[variant_b]['read_set'][0]) + len(dict_variant_reads[variant_a]['read_set'][0] & dict_variant_reads[variant_b]['read_set'][1])
-		
+
 	# determine if phasing is concordant with what as specified in the input VCF
 	phase_concordant = ".";
 	# make sure the input VCF had phase
 	if "-" not in dict_variant_reads[variant_a]['phase'] and "-" not in dict_variant_reads[variant_b]['phase']:
 		if hap_config_a_support > hap_config_b_support:
-			
+
 			if dict_variant_reads[variant_a]['phase'].index(dict_variant_reads[variant_a]['alleles'][0]) == dict_variant_reads[variant_b]['phase'].index(dict_variant_reads[variant_b]['alleles'][0]):
 				phase_concordant = 1;
 			else:
@@ -1396,17 +1396,17 @@ def test_variant_connection(input):
 	other_base_connections += len(dict_variant_reads[variant_a]['read_set'][1] & dict_variant_reads[variant_b]['other_read_set']);
 	# a[other] -> b[other]
 	other_base_connections += len(dict_variant_reads[variant_a]['other_read_set'] & dict_variant_reads[variant_b]['other_read_set']);
-	
+
 	c_supporting = max(hap_config_a_support,hap_config_b_support);
 	c_total = hap_config_a_support + hap_config_b_support + other_base_connections;
-	
+
 	if hap_config_a_support > hap_config_b_support:
 		chosen_config = 0;
 	elif hap_config_a_support < hap_config_b_support:
 		chosen_config = 1;
 	else:
 		chosen_config = -1;
-	
+
 	# if no reads support the phase then strip this connection
 	if c_supporting == 0:
 		conflicting_config_p = 0;
@@ -1416,7 +1416,7 @@ def test_variant_connection(input):
 	else:
 		# only both doing the test if there are some conflicting reads
 		conflicting_config_p = 1;
-		
+
 	return([chr,variant_a,variant_b,conflicting_config_p,c_supporting,c_total,phase_concordant,chosen_config]);
 
 def new_temp_file():
@@ -1430,40 +1430,40 @@ def write_vcf():
 	global dict_variant_reads;
 	global haplotype_pvalue_lookup
 	global sample_column;
-	
-	fun_flush_print("#7. Outputting phased VCF...");	
-	
+
+	fun_flush_print("#7. Outputting phased VCF...");
+
 	if args.gw_phase_vcf == 1:
 		fun_flush_print("     GT field is being updated with phASER genome wide phase when applicable. This can be changed using the --gw_phase_vcf argument.");
 	elif args.gw_phase_vcf == 2:
 		fun_flush_print("     GT field is being updated with either phASER genome wide phase or phASER block phase with PS specified, depending on phase anchoring quality.");
 	else:
 		fun_flush_print("     GT field is not being updated with phASER genome wide phase. This can be changed using the --gw_phase_vcf argument.");
-	
+
 	if args.chr != "":
 		decomp_str = "tabix -h "+args.vcf+" "+args.chr+":"
 	else:
 		decomp_str = "gunzip -c "+args.vcf;
-	
+
 	tmp_out = tempfile.NamedTemporaryFile(delete=False);
 	tmp_out.close();
-		
-	subprocess.call(decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" > "+tmp_out.name,shell=True);
-		
+
+	subprocess.check_call("set -euo pipefail && "+decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" > "+tmp_out.name,shell=True, executable='/bin/bash')
+
 	vcf_in = open(tmp_out.name,"r");
-	
+
 	vcf_out = open(args.o+".vcf","w");
-	
+
 	phase_corrections = 0;
 	unphased_phased = 0;
-	
+
 	set_phased_vars = set(haplotype_lookup.keys());
 	format_text = "";
 	for line in vcf_in:
 		if "##FORMAT" in line:
 			format_text += line;
 			vcf_out.write(line);
-		
+
 		vcf_columns = line.replace("\n","").split("\t");
 		if line.startswith("#CHROM"):
 			# we reached the end of the format section
@@ -1487,15 +1487,15 @@ def write_vcf():
 			id = vcf_columns[2];
 			chrom = vcf_columns[0];
 			pos = int(vcf_columns[1]);
-			
+
 			if args.chr == "" or chrom == args.chr:
 				if "GT" in vcf_columns[8]:
 					gt_index = vcf_columns[8].split(":").index("GT");
 					genotype = list(vcf_columns[9].split(":")[gt_index]);
-				
+
 					if "|" in genotype: genotype.remove("|");
 					if "/" in genotype: genotype.remove("/");
-			
+
 					# get only the alleles this individual has
 					alt_alleles = vcf_columns[4].split(",");
 					all_alleles = [vcf_columns[3]] + alt_alleles;
@@ -1504,7 +1504,7 @@ def write_vcf():
 					for i in range(0,len(all_alleles)):
 						if str(i) in genotype:
 							ind_alleles.append(all_alleles[i]);
-				
+
 					# make sure there are as many entries in each sample as there should be before adding new columns
 					# if there are entries missing add blanks
 					n_fields = len(vcf_columns[8].split(":"));
@@ -1513,35 +1513,35 @@ def write_vcf():
 						if sample_fields != n_fields:
 							missing_cols = n_fields - sample_fields;
 							vcf_columns[i] += ":" * missing_cols;
-					
+
 					# update the format tags only if they are needed
 					vcf_format_fields = vcf_columns[8].split(":");
 					phaser_tags = ['PG','PB','PI','PW','PC','PM'];
 					for tag in phaser_tags:
 						if tag not in vcf_format_fields: vcf_format_fields.append(tag);
 					vcf_columns[8] = ":".join(vcf_format_fields);
-					
+
 					#generate a unique id
 					unique_id = chrom+args.id_separator+str(pos)+args.id_separator+(args.id_separator.join(all_alleles));
-					
-					if unique_id in set_phased_vars:					
+
+					if unique_id in set_phased_vars:
 						# retrieve the correct allele number of each allele
 						# issue because if a site is multi-allelic it will be converted to 0/1 (ie 0/2 converted to 0/1)
 						alleles_out = [];
 						gw_phase_out = ["",""];
 						block_index = haplotype_lookup[unique_id][2];
-					
+
 						for allele in haplotype_lookup[unique_id][1].split("|"):
 							allele_base = dict_variant_reads[unique_id]['alleles'][int(allele)];
 							vcf_allele_index = all_alleles.index(allele_base);
-						
+
 							# get the genome wide phase
 							gw_phase = dict_variant_reads[unique_id]['gw_phase'][int(allele)]
 							if isinstance(gw_phase, int) == True:
 								gw_phase_out[gw_phase] = str(vcf_allele_index);
-							
+
 							alleles_out.append(str(vcf_allele_index));
-					
+
 						# get rsID for each of the variants on the haplotype
 						variants_out = [];
 						for variant in haplotype_lookup[unique_id][0]:
@@ -1559,15 +1559,15 @@ def write_vcf():
 							if gw_stat >= args.gw_phase_vcf_min_confidence:
 								if "|" in xfields[gt_index] and xfields[gt_index] != new_phase: phase_corrections += 1;
 								if "/" in xfields[gt_index] and xfields[gt_index] != "./." and xfields[gt_index] != new_phase: unphased_phased += 1;
-								
+
 								if args.gw_phase_vcf == 1 or args.gw_phase_vcf == 2:
 									xfields[gt_index] = new_phase;
 									vcf_columns[9] = ":".join(xfields);
-							
+
 							if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
 								xfields[gt_index] = "|".join(alleles_out);
 								vcf_columns[9] = ":".join(xfields);
-						
+
 						sample_fields = vcf_columns[9].split(":");
 						sample_fields += ['']*(len(vcf_format_fields) - len(sample_fields));
 						sample_fields[vcf_format_fields.index('PG')] = "|".join(alleles_out);
@@ -1576,7 +1576,7 @@ def write_vcf():
 						sample_fields[vcf_format_fields.index('PM')] = str(max_block_maf);
 						sample_fields[vcf_format_fields.index('PW')] = "|".join(gw_phase_out);
 						sample_fields[vcf_format_fields.index('PC')] = str(gw_stat);
-						
+
 						# ADD PS IF NEEDED
 						if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
 							if 'PS' not in vcf_format_fields:
@@ -1584,7 +1584,7 @@ def write_vcf():
 								vcf_format_fields.append("PS");
 								sample_fields.append('');
 							sample_fields[vcf_format_fields.index('PS')] = str(block_index);
-						
+
 						vcf_columns[9] = ":".join(sample_fields);
 
 					else:
@@ -1597,28 +1597,28 @@ def write_vcf():
 						sample_fields[vcf_format_fields.index('PW')] = vcf_columns[9].split(":")[gt_index];
 						sample_fields[vcf_format_fields.index('PC')] = '.';
 						vcf_columns[9] = ":".join(sample_fields);
-				
+
 				# if VCF contains multiple samples, only output the phased sample
 				out_cols = vcf_columns[0:9] + [vcf_columns[9]];
-				
+
 				vcf_out.write("\t".join(out_cols)+"\n");
-					
+
 	vcf_out.close();
 	os.remove(tmp_out.name);
-	
+
 	fun_flush_print("     Compressing and tabix indexing output VCF...");
-	subprocess.call("bgzip -f "+args.o+".vcf; tabix -f -p vcf "+args.o+".vcf.gz", shell=True);
-	
+	subprocess.check_call("set -euo pipefail && "+"bgzip -f "+args.o+".vcf; tabix -f -p vcf "+args.o+".vcf.gz", shell=True, executable='/bin/bash')
+
 	return([unphased_phased, phase_corrections]);
-	
+
 def str_join(joiner,list):
 	list = map(str, list);
 	return(joiner.join(list));
-	
+
 def build_haplotypes(input):
-	
+
 	dict_variant_overlap = copy.deepcopy(input);
-	
+
 	block_haplotypes = [];
 	total_hap_pool = len(dict_variant_overlap);
 	remaining_hap_pool = dict_variant_overlap;
@@ -1637,7 +1637,7 @@ def build_haplotypes(input):
 		remaining_hap_pool = result[1];
 		set_remaining_hap_pool = result[2];
 		block_haplotypes.append(new_hap);
-	
+
 	return(block_haplotypes);
 
 def sort_var_ids(ids):
@@ -1648,7 +1648,7 @@ def sort_var_ids(ids):
 def count_hap_junctions(block):
 	counted = set([]);
 	reads = [];
-	
+
 	for var_index in range(0,len(block)):
 		for var_allele in range(0,2):
 			for other_index in range(0, len(block)):
@@ -1664,13 +1664,13 @@ def count_hap_reads(input):
 	configuration = input[1];
 	parent_block = None;
 	block_number = None;
-	
+
 	if len(input) == 4:
 		parent_block = input[2];
 		block_number = input[3];
-		
+
 	global dict_variant_reads;
-	
+
 	reads = [];
 	counted = set([]);
 	# sum up supporting reads between all configs
@@ -1681,19 +1681,19 @@ def count_hap_reads(input):
 					# the noise test should be done here, only pairs where the signal is above noise should be counted.
 					reads += list(dict_variant_reads[block[var_index]]['read_set'][int(configuration[var_index])] & dict_variant_reads[block[other_index]]['read_set'][int(configuration[other_index])]);
 					counted.add(str(var_index)+":"+str(other_index));
-					
+
 	return([block, configuration, len(reads), parent_block, block_number]);
 
 def generate_hap_network_all(input):
 	block = input;
-	
+
 	global dict_variant_reads;
-	
+
 	reads = [];
 	counted = set([]);
-	
+
 	out_junctions = [];
-	
+
 	for var_index in range(0,len(block)):
 		for other_index in range(0, len(block)):
 			if other_index != var_index:
@@ -1704,38 +1704,38 @@ def generate_hap_network_all(input):
 							out_junctions.append([dict_variant_reads[block[var_index]]['id']+":"+dict_variant_reads[block[var_index]]['alleles'][allele_index],dict_variant_reads[block[other_index]]['id']+":"+dict_variant_reads[block[other_index]]['alleles'][other_allele_index], len(junctions), 0]);
 							out_junctions.append([dict_variant_reads[block[var_index]]['id']+":"+dict_variant_reads[block[var_index]]['alleles'][int(not allele_index)],dict_variant_reads[block[other_index]]['id']+":"+dict_variant_reads[block[other_index]]['alleles'][int(not other_allele_index)], len(junctions), 1]);
 							counted.add(str(var_index)+":"+str(allele_index)+":"+str(other_index)+":"+str(other_allele_index));
-	
+
 	return([out_junctions, block]);
-	
+
 def generate_hap_network(input):
 	block = input[0];
 	configuration = input[1];
-	
+
 	global dict_variant_reads;
-	
+
 	reads = [];
 	counted = set([]);
-	
+
 	out_junctions = [];
-	
+
 	# sum up supporting reads between all configs
 	for var_index in range(0,len(block)):
 		for other_index in range(0, len(block)):
 			if other_index != var_index:
 				if (str(var_index)+":"+str(other_index) not in counted) and (str(other_index)+":"+str(var_index) not in counted):
-					
+
 					## SHOULD FIRST CHECK TO MAKE SURE THIS ISN'T A READ PAIR THAT FAILED THE TEST
 					# actually I don't think this matters, it will always choose the most supported phase
-					
+
 					junctions = list(dict_variant_reads[block[var_index]]['read_set'][int(configuration[var_index])] & dict_variant_reads[block[other_index]]['read_set'][int(configuration[other_index])]);
 					out_junctions.append([dict_variant_reads[block[var_index]]['rsid']+":"+dict_variant_reads[block[var_index]]['alleles'][int(configuration[var_index])],dict_variant_reads[block[other_index]]['rsid']+":"+dict_variant_reads[block[other_index]]['alleles'][int(configuration[other_index])], len(junctions), 0]);
 					out_junctions.append([dict_variant_reads[block[var_index]]['rsid']+":"+dict_variant_reads[block[var_index]]['alleles'][int(not int(configuration[var_index]))],dict_variant_reads[block[other_index]]['rsid']+":"+dict_variant_reads[block[other_index]]['alleles'][int(not int(configuration[other_index]))], len(junctions), 1]);
 					counted.add(str(var_index)+":"+str(other_index));
-					
+
 	return([out_junctions, block, configuration]);
-	
+
 def get_allele_phase(allele, var_dict):
-	
+
 	try:
 		return(var_dict['phase'].index(allele));
 	except:
@@ -1743,17 +1743,17 @@ def get_allele_phase(allele, var_dict):
 
 def build_haplotype_v3(set_haplotype, dict_all_associations, set_all_associations):
 	global args;
-	
+
 	overlapping = set_haplotype & set_all_associations;
-	
+
 	while len(overlapping) > 0:
 		for variant in overlapping:
 			set_haplotype = set_haplotype | dict_all_associations[variant];
 			del dict_all_associations[variant];
 			set_all_associations.remove(variant);
-		
+
 		overlapping = set_haplotype & set_all_associations;
-		
+
 	return([set_haplotype, dict_all_associations, set_all_associations])
 
 def get_var_pos(var_fields):
@@ -1763,10 +1763,10 @@ def list_to_string(xlist,sep=","):
 	string_out = "";
 	for item in xlist:
 		string_out += str(item) + sep;
-	
+
 	if len(sep) > 0:
 		string_out = string_out[:-len(sep)];
-	
+
 	return(string_out);
 
 def print_warning(text):
@@ -1780,7 +1780,7 @@ def dict_from_info(info_field):
 		sub_field = field.split("=");
 		if len(sub_field) == 2:
 			out_dict[sub_field[0]] = sub_field[1];
-	
+
 	return(out_dict);
 
 def fun_flush_print(text):
@@ -1799,21 +1799,21 @@ def pool_split(threads, data):
 	global args;
 	data_length = len(data);
 	pool_input = [];
-	
+
 	# calculate pool size if all data is divided by number of threads
 	optimal_pool_size = data_length/threads;
-	
+
 	# unfortunately due to OS limitations the maximum output but a given thread is limited
 	# so the pool size can't be too enormous
 	# see : http://bugs.python.org/issue8426
 	# so limit it to at max some value (set at 100,000 by default)
 	# this is probably conservative but I haven't checked out what the best number is yet
-	
+
 	pool_size = min([args.max_items_per_thread, optimal_pool_size]);
-	
+
 	if pool_size > 0:
 		pool_inputs = data_length / pool_size;
-	
+
 		for i in range(0,pool_inputs):
 			#last pool gets the remaining reads
 			if i == (pool_inputs-1):
@@ -1822,19 +1822,19 @@ def pool_split(threads, data):
 				pool_input.append(data[(i*pool_size):((i+1)*pool_size)]);
 	else:
 		pool_input = [];
-	
+
 	return(pool_input);
 
 def pool_setup(pool_input):
 	global args;
-	
+
 	threads = min([len(pool_input),args.threads]);
-	
+
 	return (multiprocessing.Pool(processes=threads));
 
 def parallelize(function, pool_input):
 	global args;
-	
+
 	if len(pool_input) > 0:
 		threads = min([len(pool_input),args.threads]);
 		if args.threads > 1:
@@ -1845,10 +1845,10 @@ def parallelize(function, pool_input):
 		else:
 			pool_output = [];
 			for input in pool_input:
-				pool_output.append(function(input));		
+				pool_output.append(function(input));
 	else:
 		pool_output = [];
-		
+
 	return(pool_output);
 
 def annotation_to_dict(text,sep=";"):
@@ -1866,8 +1866,8 @@ def phase_v3(input):
 	variants = input[0];
 	variant_connections = input[1];
 	allele_connections = input[2];
-	
-	
+
+
 	# first check to see if haplotype is fully concordant
 	# if it is simply return the haplotype
 	xhap = resolve_phase(variants, allele_connections);
@@ -1875,7 +1875,7 @@ def phase_v3(input):
 		final_blocks = xhap;
 	else:
 		# if there is no concordant select phase with most support in terms of connections
-	
+
 		# first break up the block if needed into sublocks at weak points
 		# always split where spanning connections = 1
 		# then if needed subsequently split at 2, 3, 4, etc..
@@ -1883,9 +1883,9 @@ def phase_v3(input):
 			xmax = len(variants);
 		else:
 			xmax = args.max_block_size;
-	
+
 		sub_blocks = split_by_weak(variants, variant_connections, xmax);
-	
+
 		# now select the most supported phase in each sub block
 		if len(sub_blocks) == 1:
 			sub_block_phases = [sub_block_phase(xvars,allele_connections)for xvars in sub_blocks];
@@ -1893,27 +1893,27 @@ def phase_v3(input):
 			sub_block_phases = [sub_block_phase(xvars,allele_connections,attempt_resolve = True)for xvars in sub_blocks];
 		# now phase sub blocks relative to each other
 		# sequentially from the left
-	
+
 		split_phases = [];
 		final_phase = sub_block_phases[0];
 		split_start = 0;
-	
+
 		for i in range(1, len(sub_block_phases)):
 			step_phases = [final_phase,sub_block_phases[i]];
 			used_vars = sum([sum([len(y) for y in x]) for x in step_phases]) / 2;
 			#print(used_vars);
 			new_phase = sub_block_phase(variants[split_start:split_start+used_vars], allele_connections, step_phases);
 			# if phasing including the next block includes uncertainty then need to split
-			if "-" in new_phase[0]:	
+			if "-" in new_phase[0]:
 				split_phases+= [final_phase];
 				split_start = used_vars;
 				final_phase = sub_block_phases[i];
 			else:
 				final_phase = new_phase;
-		
+
 		final_blocks = split_phases + [final_phase];
 		do_print = 1;
-	
+
 	out_phase = [];
 	variant_index = 0;
 	for block in final_blocks:
@@ -1923,11 +1923,11 @@ def phase_v3(input):
 			variant_index += 1;
 		if "-" not in out_block[0].split(":")[1]:
 			out_phase.append(out_block);
-		
+
 	return(out_phase);
-		
+
 def resolve_phase(variants, allele_connections, clean_connections = False):
-	
+
 	# if needed remove connections from allele_connections that are not in the variant list
 	if clean_connections == True:
 		set_variants = set(variants);
@@ -1940,11 +1940,11 @@ def resolve_phase(variants, allele_connections, clean_connections = False):
 					other_variant = connection.split(":")[0];
 					if other_variant in variants:
 						cleaned_connections[allele].add(connection);
-	
+
 		allele_connections = cleaned_connections;
-								
+
 	remaining_hap_pool = copy.deepcopy(allele_connections);
-	set_remaining_hap_pool = set(remaining_hap_pool.keys());	
+	set_remaining_hap_pool = set(remaining_hap_pool.keys());
 	seed_var = remaining_hap_pool.keys()[0];
 	seed = set([seed_var] + list(remaining_hap_pool[seed_var]));
 	del remaining_hap_pool[seed_var];
@@ -1961,9 +1961,9 @@ def resolve_phase(variants, allele_connections, clean_connections = False):
 		return([[output,inverse_conifg(output)]]);
 	else:
 		return(None);
-	
+
 def sub_block_phase(variants, allele_connections, sub_block_configs=[], attempt_resolve = False):
-	
+
 	if len(sub_block_configs) > 0:
 		# if we given sub block phases then we are phasing sub blocks against each other
 		configurations = [];
@@ -1977,14 +1977,14 @@ def sub_block_phase(variants, allele_connections, sub_block_configs=[], attempt_
 			xhap = resolve_phase(variants, allele_connections, clean_connections = True);
 			if xhap != None:
 				return(xhap[0]);
-	
+
 		# otherwise determine all possible configurations in this block
 		configurations = ["".join(seq) for seq in itertools.product("01", repeat=len(variants))];
-	
+
 	supporting_connections = {};
-	
+
 	set_variants = set(variants);
-		
+
 	for configuration in configurations:
 		inverse_config = inverse_conifg(configuration);
 		# only test each haplotype once, not necessary to test complement
@@ -1998,17 +1998,17 @@ def sub_block_phase(variants, allele_connections, sub_block_configs=[], attempt_
 								if other_allele != "-":
 									if other_variant+":"+other_allele in allele_connections[variant+":"+allele]:
 										support += 1;
-							
+
 			supporting_connections[configuration + "|" + inverse_config] = support;
-	
+
 	# select connections with maximum support
 	max_support = max(supporting_connections.values());
-	
+
 	best_configs = [];
 	for config in supporting_connections.keys():
 		if supporting_connections[config] == max_support:
 			best_configs.append(config);
-	
+
 	if len(best_configs) == 1:
 		return(best_configs[0].split("|"));
 	else:
@@ -2016,18 +2016,18 @@ def sub_block_phase(variants, allele_connections, sub_block_configs=[], attempt_
 
 def inverse_conifg(config):
 	out_config = "";
-	
+
 	for allele in config:
 		if allele != "-":
 			out_config += str(int(not int(allele)));
 		else:
 			out_config += "-";
-	
+
 	return(out_config)
-	
+
 def split_by_weak(variants, variant_connections, max_size):
 	#NOTE THE INPUT VARIANT LIST MUST BE SORTED BY POSITION
-	
+
 	weak_points = find_weak_points(variants, variant_connections);
 	# first always split at points only spanned by one connection, there is no reason not to
 	haplo_fragments = [];
@@ -2039,15 +2039,15 @@ def split_by_weak(variants, variant_connections, max_size):
 			if weak_points[position] == split_at:
 				if position + 1 not in split_points and position - 1 not in split_points:
 					split_points.append(position);
-		
+
 		if len(split_points) > 0:
 			haplo_fragments = split_variants(variants, split_points);
 		else:
 			haplo_fragments = [variants];
-			
+
 		max_frag = max([len(x) for x in haplo_fragments]);
 		split_at += 1;
-	
+
 	return(haplo_fragments);
 
 def split_variants(variants, split_points):
@@ -2060,50 +2060,50 @@ def split_variants(variants, split_points):
 			split_variants.append(variants[split_points[i-1]:split_points[i]]);
 		else:
 			split_variants.append(variants[split_points[i-1]:]);
-	
+
 	return(split_variants);
 
 def find_weak_points(variants, variant_connections):
 	# this function reports how many connections are crossing each point, where a point is between a pair of variants
 	# it returns a dictionary with the counts at each point
-	
+
 	dict_counts = {};
-	
+
 	for position in range(2,len(variants)-1):
 		dict_counts[position] = 0;
-		
+
 		for xvar in variant_connections:
 			for connection in variant_connections[xvar]:
 				# check if variant spans position
 				if variants.index(xvar) < (position - 0.5) and variants.index(connection) > (position - 0.5):
 					dict_counts[position] += 1;
-	
+
 	return(dict_counts);
-	
+
 def sample_column_map(path, start_col=9, line_key="#CHR"):
 	stream_in = gzip.open(path, "r");
-	
+
 	out_map = {};
 	for line in stream_in:
 		if line_key in line:
 			line = line.rstrip().split("\t");
 			for i in range(start_col,len(line)):
 				out_map[line[i]] = i;
-		
+
 			break;
-	
+
 	stream_in.close();
-	
+
 	return(out_map);
 
 def check_dependency(name):
 	global devnull;
-	
-	error_code = subprocess.call("which "+name, shell=True, stdout=devnull);
+
+	error_code = subprocess.check_call("set -euo pipefail && "+"which "+name, shell=True, executable='/bin/bash', stdout=devnull)
 	if error_code == 0:
 		return(True);
 	else:
 		return(False);
-				
+
 if __name__ == "__main__":
 	main();
