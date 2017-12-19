@@ -66,7 +66,7 @@ def main():
 	args = parser.parse_args()
 
 	#setup
-	version = "1.0.0";
+	version = "1.0.1";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -102,11 +102,15 @@ def main():
 	# check that all passed files actually exist
 	if os.path.isfile(args.vcf) == False:
 		fatal_error("VCF file does not exist.");
-	elif os.path.isfile(args.vcf+".tbi") == False:
+	elif os.path.isfile(args.vcf+".tbi") == False and os.path.isfile(args.vcf+".csi") == False:
 		fatal_error("VCF file is not tabix indexed.");
 	if args.vcf.endswith(".gz") == False and args.vcf.endswith(".bgz") == False:
 		fatal_error("VCF must be gzipped.");
-
+	
+	# record whether a CSI or TBI file was used for VCF
+	global csi_index;
+	csi_index = int(os.path.isfile(args.vcf+".csi"));
+	
 	check_files = args.bam.split(",");
 	for xfile in check_files:
 		if xfile != "":
@@ -1430,7 +1434,8 @@ def write_vcf():
 	global dict_variant_reads;
 	global haplotype_pvalue_lookup
 	global sample_column;
-
+	global csi_index;
+	
 	fun_flush_print("#7. Outputting phased VCF...");
 
 	if args.gw_phase_vcf == 1:
@@ -1607,7 +1612,9 @@ def write_vcf():
 	os.remove(tmp_out.name);
 
 	fun_flush_print("     Compressing and tabix indexing output VCF...");
-	subprocess.check_call("set -euo pipefail && "+"bgzip -f "+args.o+".vcf; tabix -f -p vcf "+args.o+".vcf.gz", shell=True, executable='/bin/bash')
+	tabix_cmd = "tabix";
+	if csi_index == 1: tabix_cmd += " --csi";
+	subprocess.check_call("set -euo pipefail && "+"bgzip -f "+args.o+".vcf; "+tabix_cmd+" -f -p vcf "+args.o+".vcf.gz", shell=True, executable='/bin/bash')
 
 	return([unphased_phased, phase_corrections]);
 
