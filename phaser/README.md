@@ -25,7 +25,7 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 
 **Test case**
 
-1000 Genomes individual NA06986 with Phase 3 genotype data and Geuvadis RNA-Seq data.
+1000 Genomes individual NA06986 with Phase 3 genotype data and Geuvadis RNA-Seq data. Coordinates are in hg19.
 * VCF: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz
 * VCF Index: ftp://ftp.nygenome.org/sec/phaser/NA06986.vcf.gz.tbi
 * BAM: ftp://ftp.nygenome.org/sec/phaser/NA06986.2.M_111215_4.bam
@@ -37,15 +37,26 @@ python2.7 phaser.py --vcf NA06986.vcf.gz --bam NA06986.2.M_111215_4.bam --paired
 
 **Useful files**
 
-We suggest that you exclude variants in HLA genes using the "--blacklist" argument becuase of the high mapping error rate in these genes. A file containing coordinates for hg19 is included here for convenience:
+We suggest that you exclude variants in HLA genes using the "--blacklist" argument becuase of the high mapping error rate in these genes. A file containing coordinates is included here for convenience:
 
-* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_hla.bed.gz
-* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_hla.chr.bed.gz
+hg19:
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19/hg19_hla.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19/hg19_hla.chr.bed.gz
+
+hg38:
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg38/hg38_hla.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg38/hg38_hla.chr.bed.gz
 
 If your goal is to do gene level allelic expression analysis, you may want to consider using the "--haplo_count_blacklist" argument, which can exclude known problem sites from haplotypic counts. If you have not taken any percautions to deal with allelic mapping bias, we suggest you exclude sites with known bias, as outlined in [Castel et al](http://genomebiology.biomedcentral.com/articles/10.1186/s13059-015-0762-6). A file containing coordinates for hg19 is included here for convenience: 
 
-* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_haplo_count_blacklist.bed.gz
-* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_haplo_count_blacklist.chr.bed.gz
+hg19:
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19/hg19_haplo_count_blacklist.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19/hg19_haplo_count_blacklist.chr.bed.gz
+
+hg38:
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg38/hg38_haplo_count_blacklist.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg38/hg38_haplo_count_blacklist.chr.bed.gz
+
 
 **Combining data across sequencing run types**
 
