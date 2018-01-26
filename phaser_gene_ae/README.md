@@ -12,10 +12,16 @@ Requires phASER to have been run with a phased VCF as input with unphased_vars e
 
 **Useful files**
 
-The specific features to produce haplotypic counts for must be provided in BED format. This is most often genes. A file containing coordinates for ensembl hg19 genes is included here for convenience:
+The specific features to produce haplotypic counts for must be provided in BED format. This is most often genes. A file containing coordinates for gencode genes is included here for convenience. Note that these annotations have been filtered to be consistent with what was used for calling GTEx eQTLs. Please ensure that they contain annotations appropriate for your specific analysis.
 
-* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_ensembl.bed.gz
-* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19_ensembl.chr.bed.gz
+hg19:
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19/gencode.v19.GRCh37.genes.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg19/gencode.v19.GRCh37.genes.chr.bed.gz
+
+hg38:
+* Without 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg38/gencode.v26.GRCh38.genes.bed.gz
+* With 'chr' in contig name: ftp://ftp.nygenome.org/sec/phaser/annot_files_v100/hg38/gencode.v26.GRCh38.genes.chr.bed.gz
+
 
 # Arguments
 ## Required
