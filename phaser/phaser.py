@@ -13,6 +13,8 @@ import os;
 import pysam;
 import math;
 import copy;
+import shutil
+import resource
 
 def main():
 	#Arguments passed
@@ -61,6 +63,12 @@ def main():
 	parser.add_argument("--unique_ids", type=int, default=0, help="Generate and output unique IDs instead of those provided in the VCF (0,1). NOTE: this should be used if your VCF does not contain a unique ID for each variant.")
 	parser.add_argument("--id_separator", default="_", help="Separator to use when generating unique IDs. Must not be found in contig name, and cannot include ':'.")
 	parser.add_argument("--output_network", default="", help="Output the haplotype connection network for the given variant.")
+
+    ## ** adding new argument - BKG
+	parser.add_argument("--process_slow", default='no', required=False,
+						help="Argument to process data slow in chunks (by chromosome) to handle memory limits.")
+
+	#####
 
 	global args;
 	args = parser.parse_args()
@@ -151,6 +159,8 @@ def main():
 
 	# filter blacklisted variants if necessary, cut only sample column, filter for heterozygous sites
 	# decompress for intersection
+
+	## ** possible position to split VCF,BAM to process data flow with low memory - BKG
 	if args.chr != "":
 		fun_flush_print("     restricting to chromosome '%s'..."%(args.chr));
 
@@ -193,7 +203,83 @@ def main():
 	## PARSE the VCF, put it into a format that can be used by the mapper
 	## one thread per chromosome
 
-	stream_vcf = open(vcf_path, "r");
+	if args.process_slow == 'no':
+		stream_vcf = open(vcf_path, "r");
+		chr=args.chr
+		process_vcf(stream_vcf, chr, contig_ban, set_haplo_blacklist, start_time, vcf_out, last_chr=False)
+
+	elif args.process_slow == 'yes':
+		stream_vcf = open(vcf_path, "r");
+		print
+		print('     Processing the readbackphasing in memory efficient mode.')
+		print('     Splitting the VCF by chromosome/contigs. ')
+		print
+
+		## ** Adding a method to find unique chromosome names - by BKG
+		# This is added to manage memory when there are multiple chromosomes
+		## ** Added by BKG - to process each chromosome separately to manage memory better  ####
+		argu0 = ["awk '{if ($1 !~ /^#/) print $1}' "+vcf_path]
+		argu1 = ['uniq']
+		process_col1 = subprocess.Popen(argu0, stdout=subprocess.PIPE,
+										stderr=subprocess.PIPE, shell=True, executable='/bin/bash')
+		process_uniq = subprocess.Popen(argu1, stdin=process_col1.stdout,
+										stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		process_col1.stdout.close()
+
+		## now get the list of unique contig names
+		uniq_chr = process_uniq.communicate()[0]
+		uniq_chr_list = uniq_chr.rstrip('\n').split("\n")
+
+		# directory to store the splitted vcf file
+		if os.path.exists('SplitVCF'):
+			shutil.rmtree('SplitVCF', ignore_errors=False, onerror=None)
+		os.makedirs('SplitVCF')
+
+		# finding meta header to write to the split vcf file
+		header = ''
+		for lines in stream_vcf:
+			if lines.startswith('#'):
+				header += lines
+			else:
+				break
+
+		# create separate names for each chromosome vcf and write the header
+		for chr_names in uniq_chr_list:
+			with open('SplitVCF/'+chr_names, 'w+') as chr_header:
+				chr_header.write(header)
+
+		# Now, process each chromosome in a loop
+		for lines in stream_vcf:
+			if lines.startswith('#') == False:
+				new_line = lines.split('\t')
+				if new_line[0] in uniq_chr_list:
+					with open('SplitVCF/'+new_line[0], 'a') as chr_line:
+						chr_line.write(lines)
+
+		# Remove this old stream.vcf
+		stream_vcf.close()
+
+		## Now, we stream the vcf for each chromosome separately, and set new stream_vcf path
+		org_outprefix = copy.copy(args.o)  # storing the string value of original output prefix
+		for nth, unq_chr in enumerate(uniq_chr_list):
+			if nth == len(uniq_chr_list):
+				last_chr = True
+			else: last_chr = False
+
+			# also update the args.o (output prefix name)
+			# since this argument is global in scope it will be pass throughout this python file.
+			args.o = org_outprefix + unq_chr
+			stream_vcf = open('SplitVCF/' + unq_chr, 'r')
+			process_vcf(stream_vcf, unq_chr, contig_ban, set_haplo_blacklist, start_time, vcf_out, last_chr)
+			stream_vcf.close()
+			print
+			print
+
+	shutil.rmtree('SplitVCF/', ignore_errors=False, onerror=None)
+
+
+def process_vcf(stream_vcf, chr, contig_ban, set_haplo_blacklist, start_time, vcf_out, last_chr):
+	args.chr = chr
 	mapper_out = tempfile.NamedTemporaryFile(delete=False);
 	bed_out = tempfile.NamedTemporaryFile(delete=False);
 	het_count = 0;
@@ -207,6 +293,7 @@ def main():
 	chromosome_pool = {};
 	filter_count = 0;
 
+
 	for line in stream_vcf:
 		vcf_columns = line.rstrip().split("\t");
 		if line.startswith("#") == False:
@@ -216,6 +303,7 @@ def main():
 			for item in contig_ban:
 				if item in chr: fatal_error("Character '%s' must not be present in contig name. Please change id separtor using --id_separator to a character not found in the contig names and try again."%(item));
 			filter = vcf_columns[6];
+
 			if args.chr == "" or args.chr == chr:
 				if chr not in chromosome_pool: chromosome_pool[chr] = [];
 				fields = vcf_columns[8].split(":");
@@ -241,9 +329,12 @@ def main():
 					else:
 						print_warning("Genotype, defined by GT not found in input VCF for variant %s."%(vcf_columns[2]));
 
-	stream_vcf.close();
-	bed_out.close();
-	mapper_out.close();
+
+	if args.process_slow == 'no' or \
+			(args.process_slow == 'yes' and last_chr==True):
+		stream_vcf.close()
+		bed_out.close()
+		mapper_out.close()
 
 	pool_input = [];
 	for chrom in chromosome_pool.keys():
@@ -403,9 +494,11 @@ def main():
 			os.remove(xfile);
 
 	#cleanup temp files
-	os.remove(mapper_out.name);
-	os.remove(bed_out.name);
-	os.remove(vcf_out.name);
+	if args.process_slow == 'no' or \
+			(args.process_slow == 'yes' and last_chr==True):
+		os.remove(vcf_out.name);
+		os.remove(mapper_out.name);
+		os.remove(bed_out.name);
 
 	for xfile in temp_files:
 		os.remove(xfile);
@@ -486,6 +579,7 @@ def main():
 
 	pool_output = parallelize(test_variant_connection, pool_input);
 
+
 	out_stream = open(args.o+".variant_connections.txt","w");
 	out_stream.write("variant_a\tvariant_b\tsupporting_connections\ttotal_connections\tconflicting_configuration_p\tphase_concordant\n");
 
@@ -538,7 +632,8 @@ def main():
 
 	# output the coverage level per snp
 	# same format as GATK tool:
-	stream_out = open(args.o+".allelic_counts.txt","w");
+
+	stream_out = open(args.o + ".allelic_counts.txt", "w");
 	stream_out.write("contig	position	variantID	refAllele	altAllele	refCount	altCount	totalCount\n");
 	covered_count = 0;
 
@@ -1044,6 +1139,8 @@ def main():
 			fun_flush_print("     GENOME WIDE PHASED  %d of %d unphased variants (= %f)"%(unphased_phased,unphased_count,float(unphased_phased)/float(unphased_count)));
 		fun_flush_print("     GENOME WIDE PHASE CORRECTED  %d of %d variants (= %f)"%(phase_corrected,het_count,float(phase_corrected)/float(het_count)));
 
+	print('     Global maximum memory usage: %.2f (mb)' % current_mem_usage())
+
 def generate_connectivity_map(chrom):
 	global read_vars;
 	global dict_variant_reads;
@@ -1455,6 +1552,7 @@ def write_vcf():
 
 	subprocess.check_call("set -euo pipefail && "+decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" > "+tmp_out.name,shell=True, executable='/bin/bash')
 
+	## ** possible manipulation to split input vcf into chunks and pipe it
 	vcf_in = open(tmp_out.name,"r");
 
 	vcf_out = open(args.o+".vcf","w");
@@ -2111,6 +2209,11 @@ def check_dependency(name):
 		return(True);
 	else:
 		return(False);
+
+
+''' to monitor memory usage. '''
+def current_mem_usage():
+	return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.
 
 if __name__ == "__main__":
 	main();
