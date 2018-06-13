@@ -100,6 +100,8 @@ All input BAMs will be used to generate haplotypes and phase variants, so they m
 * **--max_block_size** _(15)_ - Maximum number of variants to phase at once. Number of haplotypes tested = 2 ^ # variants in block. Blocks larger than this will be split into sub blocks, phased, and then the best scoring sub blocks will be phased with each other.
 * **--temp_dir** _()_ - Location of temporary directory to use for storing files. If left blank will default to system temp dir. NOTE: potentially large files will be stored in this directory, so please ensure there is sufficient free space.
 * **--max_items_per_thread** _(100,000)_ - Maximum number of items that can be assigned to a single thread to process. NOTE: if this number is too high Python will stall when trying to join the pools.
+* **--process_slow** _(0)_ - Process each chromosome one by one (0,1). NOTE: In the organism that don't have highly curated chromosome there could be numerous scaffolds. Large number of scaffolds will increase memory consumption. In that case each contig/chromosome/scaffold can be processed one by one to avoid memory issues. `process_slow` should be used with `threads 1`.
+
 
 ## Debug / Development / Reporting
 * **--show_warning** _(0)_ - Show warnings in stdout (0,1).
