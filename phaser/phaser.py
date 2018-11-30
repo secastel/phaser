@@ -140,7 +140,7 @@ def main():
 
 
 	##  find all the sample names in input VCF file.
-		# this code returns a key-value of all the "sample:sample position" in the vcf file
+	# this code returns a key-value of all the "sample:sample position" in the vcf file
 	map_sample_column = sample_column_map(args.vcf);
 
 
@@ -159,7 +159,7 @@ def main():
 
 	''' Starting Read backed phasing '''
 	sample_start_time = time.time()
-	fun_flush_print('STARTED "Read backed phasing" ... ')
+	fun_flush_print('STARTED "Read backed phasing and ASE/haplotype analyses" ... ')
 	print("    DATE, TIME : %s" % (datetime.datetime.now().strftime('%Y-%m-%d, %H:%M:%S')))
 
 	fun_flush_print("#1. Loading heterozygous variants into intervals...")
@@ -175,7 +175,7 @@ def main():
 	print("DATE, TIME : %s" %(datetime.datetime.now().strftime('%Y-%m-%d, %H:%M:%S')))
 	fun_flush_print('')
 
-	print('The End :)  :)')
+	print('The End.')
 
 
 '''Function to run Readback phasing for the given input sample'''
@@ -209,7 +209,7 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 		fun_flush_print("    using all the chromosomes ...");
 		decomp_str = "gunzip -c "+args.vcf;
 
-	## ** what is this code doing ??
+	## create a temporary file to store the VCF data
 	vcf_out = tempfile.NamedTemporaryFile(delete=False);
 	vcf_out.close();
 	vcf_path = vcf_out.name;
@@ -242,25 +242,29 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 
 	set_haplo_blacklist = set(set_haplo_blacklist);
 
-	# storing the string value of original output prefix
+	# storing the string value of original output prefix (i.e args.o)
 	#org_outprefix = copy.copy(args.o)
 	org_outprefix = copy.copy(sample_out_path)
 	fun_flush_print('')
 
 	#stream_vcf = open(vcf_path, "r")
 	if args.process_slow == 0:
-		'''loads all the bam reads in to the memory. This is good when RAM is big '''
-		print('    Memory efficient mode is deactivated.\n'
-			  '    If RAM is limited, activate memory efficient mode using the flag "--process_slow = 1".\n')
+		'''loads "all reads" from bam file (from all chromosome/contigs) in to the memory. 
+		This is good when the computer RAM is big.'''
+		print('    Memory efficient mode is deactivated...\n'
+			  '    If RAM is limited, activate memory efficient mode using the flag "--process_slow = 1"...\n')
 		#stream_vcf = gzip.open(args.vcf) ;
 		stream_vcf = open(vcf_path, "r")
 		chr_of_interest = args.chr
 		start_time = time.time()
 
 		process_vcf(stream_vcf, chr_of_interest, contig_ban, set_haplo_blacklist,
-					start_time, vcf_out, sample_out_path, last_chr=True)
+					start_time, vcf_out, sample_out_path, last_chr=True, pi_block_value = 0)
 
 	elif args.process_slow == 1:
+		'''processes reads from each contig/chromosome separately. 
+		This is helpful is the computer RAM is limited. 
+		Ironically, this mode might be faster if memory congestion occurs in "all reads" mode.'''
 		print('    Memory efficient mode is activated... ')
 
 		## prepare the list of the contig/chromosome names in the input VCF
@@ -278,6 +282,12 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 			chr_of_interest = args.chr.split(',')
 			print('    %s unique contigs/chromosomes assigned... ' % (len(chr_of_interest)))
 
+
+		# to assign unique block value to read backed phased haplotypes
+		# used in the function "process_vcf()"
+		global pi_block_value
+		pi_block_value = 0
+
 		## Now, process each contig/chromosome separately on a for loop
 		print('    Running processes for each chromosome separately...\n')
 		for nth, unq_chr in enumerate(chr_of_interest):
@@ -292,24 +302,24 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 			stream_vcf = open(vcf_path, "r")
 
 			# name the output as : arg.o + contig name.
+			# ** for future: this may also be stored as a temporary file
 			sample_out_path_by_chr = org_outprefix + unq_chr
 			start_time = time.time()
 
 			# now, pass the data to the required procedure/function
 			process_vcf(stream_vcf, unq_chr, contig_ban,
 						set_haplo_blacklist, start_time, vcf_out,
-						sample_out_path_by_chr, last_chr)
+						sample_out_path_by_chr, last_chr, pi_block_value)
 
-			# pause the loop just for few secs (just for optimization purposes)
+			# pause the loop briefly for few secs (to allow some time/room for optimization purposes)
 			time.sleep(1.5)
 			fun_flush_print('')
-
 
 		## After the above for-loop process is complete, merge the data for several contigs/chromosomes
 		# This is only active in "process_slow = 1" mode.
 		merge_files(chr_of_interest, org_outprefix, sample_name)
 
-
+# this is only active in "process_slow = 1" mode.
 def merge_files(chr_of_interest, org_outprefix, sample_name):
 	print("#8. Merging the results from several contigs/chromosome ...")
 	file_group = collections.OrderedDict()  # to store the names by group
@@ -355,12 +365,17 @@ def merge_files(chr_of_interest, org_outprefix, sample_name):
 			tabix_cmd = "tabix -f -p vcf " + org_outprefix + ".vcf.gz"
 			subprocess.check_call(tabix_cmd, shell=True, executable='/bin/bash')
 
+	## delete the non required files
+	# ** for future: if these files were stored as temp file this deletion won't be necessary
+	for names in files_to_delete:
+		os.remove(names)
+
 
 '''This function processes vcf for the input sample. If memory_efficient mode is activated, 
-   vcf for each chromosome/scaffold would be passed into this function, if not all the VCF 
-   will be passed at once. '''
+   VCF for each chromosome/scaffold would be passed one by one into this function, 
+   if not all the VCF data will be passed at once. '''
 def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
-				start_time, vcf_out, out_prefix, last_chr):
+				start_time, vcf_out, out_prefix, last_chr, pi_block_value):
 	chrom_of_interest = chromosome
 	mapper_out = tempfile.NamedTemporaryFile(delete=False);
 	bed_out = tempfile.NamedTemporaryFile(delete=False);
@@ -374,14 +389,11 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 	fun_flush_print("     creating variant mapping table...");
 
 	gt_index = -1;
-
-	#chromosome_pool = {};
 	chromosome_pool = collections.OrderedDict()
 	filter_count = 0;
 
 	for line in stream_vcf:
 		vcf_columns = line.rstrip('\n').split("\t");
-
 		if line.startswith("#") == False:
 			#1       10177   .       A       AC      100     PASS    AC=2130;AF=0.425319;AN=5008;NS=2504;DP=103152;EAS_AF=0.3363;AMR_AF=0.3602;AFR_AF=0.4909;EUR_AF=0.4056;SAS_AF=0.4949;AA=|||unknown(NO_COVERAGE)  GT      1|0
 			unphased = False;
@@ -456,7 +468,8 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 	file_names = [os.path.basename(xbam).replace(".bam","") for xbam in bam_list];
 
 	bam_names = [];
-	bam_counter = {};
+	bam_counter = collections.OrderedDict()
+
 	for xbam in file_names:
 		if file_names.count(xbam) > 1:
 			if xbam not in bam_counter: bam_counter[xbam] = 0;
@@ -499,10 +512,10 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 		samtools_arg_list.append(samtools_arg)
 
 	global dict_variant_reads;
-	dict_variant_reads = {};
+	dict_variant_reads = collections.OrderedDict()
 
 	global read_vars;
-	read_vars = {};
+	read_vars = collections.OrderedDict()
 
 	global bam_index;
 	bam_index = 0;
@@ -517,7 +530,6 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 		fun_flush_print("          mapping reads to variants...");
 		pool_input = [x + [samtools_arg,bam,mapq,isize] for x in mapping_files];
 		result_files = parallelize(call_mapping_script, pool_input);
-
 
 		# process the result
 
@@ -540,6 +552,7 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 
 		# B now process variant read overlaps
 		pool_output = parallelize(process_mapping_result, result_files);
+
 		for output in pool_output:
 			for variant in output[0]:
 				if variant not in dict_variant_reads:
@@ -556,7 +569,7 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 					dict_variant_reads[variant]['other_reads'] += output[0][variant]['other_reads'];
 
 		for output in pool_output:
-			if output[3] not in read_vars: read_vars[output[3]] = {};
+			if output[3] not in read_vars: read_vars[output[3]] = collections.OrderedDict()
 
 		for output in pool_output:
 			for read in output[1]:
@@ -629,8 +642,7 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 	# dictionary tells you what variants are connected
 	fun_flush_print("     generating read connectivity map...");
 	global dict_variant_overlap;
-
-	dict_variant_overlap = {};  ## update this ???
+	dict_variant_overlap = collections.OrderedDict()
 
 	pool_input = read_vars.keys();
 	pool_output = parallelize(generate_connectivity_map, pool_input);
@@ -665,12 +677,11 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 
 	pool_output = parallelize(test_variant_connection, pool_input);
 
-
 	#out_stream = open(args.o+".variant_connections.txt","w");
 	out_stream = open(out_prefix + ".variant_connections.txt", "w");
 	out_stream.write("variant_a\tvariant_b\tsupporting_connections\ttotal_connections\tconflicting_configuration_p\tphase_concordant\n");
 
-	dict_allele_connections = {};
+	dict_allele_connections = collections.OrderedDict()
 
 	# remove all those connections which failed
 	c_dropped = 0;
@@ -781,8 +792,9 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 
 	for block in block_haplotypes:
 		# retrieve all allele connections for block;
-		variant_connections = {};
-		allele_connections = {};
+		variant_connections = collections.OrderedDict()
+		allele_connections = collections.OrderedDict()
+
 		for variant in block:
 			chr = variant.split(args.id_separator)[0];
 			if variant in dict_variant_overlap[chr]: variant_connections[variant] = dict_variant_overlap[chr][variant];
@@ -793,6 +805,7 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 
 	pool_output = parallelize(phase_v3, pool_input);
 	final_haplotypes = [];
+
 	for output in pool_output:
 		for block in output:
 			if block != []:
@@ -832,17 +845,20 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 	stream_out_allele_configs.write("\t".join(['variant_a','rsid_a','variant_b','rsid_b','configuration'])+"\n");
 
 	global haplotype_lookup;
-	haplotype_lookup = {};
+	haplotype_lookup = collections.OrderedDict()
+
 	global haplotype_pvalue_lookup;
-	haplotype_pvalue_lookup = {};
+	haplotype_pvalue_lookup = collections.OrderedDict();
 	global haplotype_gw_stat_lookup;
-	haplotype_gw_stat_lookup = {};
+	haplotype_gw_stat_lookup = collections.OrderedDict();
 	global haplotype_max_maf_lookup;
-	haplotype_max_maf_lookup = {};
+	haplotype_max_maf_lookup = collections.OrderedDict();
 	all_variants = [];
 
-	block_index = 0;
-
+	#block_index = 0;
+	# Create a new variable to store values of "block index"
+	# value of initial "block index" is based on value of "pi block value" (which is global variable)
+	block_index = pi_block_value
 
 	for block in final_haplotypes:
 		#get all unique variants
@@ -1103,6 +1119,7 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 						fields_out += [list_to_string(hap_a_reads),list_to_string(hap_b_reads)];
 					fields_out += [str(max(haplotype_mafs)),bam_name];
 					fields_out += [hap_var_reads[0],hap_var_reads[1]];
+
 					stream_out_ase.write(str_join("\t",fields_out)+"\n");
 
 		## OUTPUT THE NETWORK FOR A SPECIFIC HAPLOTYPE
@@ -1152,6 +1169,11 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 					if a_config != "":
 						stream_out_allele_configs.write("\t".join([variant_a,dict_variant_reads[variant_a]['rsid'],variant_b,dict_variant_reads[variant_b]['rsid'],a_config])+"\n");
 
+	# update pi_block_value after the loop is over
+	if args.process_slow == 1:
+		pi_block_value = block_index
+	else:pi_block_value = 0
+
 	#output read counts for unphased variants
 	if args.unphased_vars == 1:
 		singletons = set(dict_variant_reads.keys()) - set(all_variants);
@@ -1160,7 +1182,6 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 			dict_var = dict_variant_reads[variant];
 			chrom = dict_var['chr'];
 			pos = int(dict_var['pos']);
-
 
 			# check to see if variant is blacklisted
 			if chrom+"_"+str(pos) not in set_haplo_blacklist:
@@ -1243,10 +1264,11 @@ def generate_connectivity_map(chrom):
 	global read_vars;
 	global dict_variant_reads;
 
-	dict_variant_overlap = {};
+	dict_variant_overlap = collections.OrderedDict();
 
 	for read_id in read_vars[chrom].keys():
 		overlapped_variants = read_vars[chrom][read_id];
+
 		for variant in overlapped_variants:
 			var_chr = dict_variant_reads[variant]['chr'];
 			for other_variant in overlapped_variants:
@@ -1254,7 +1276,7 @@ def generate_connectivity_map(chrom):
 				# Restrict to being on the same chromosome, speeds up and allows parallelization
 				# might not be desired for some very specific cases (ie trans-splicing)
 				if var_chr == other_var_chr and other_variant != variant:
-					if var_chr not in dict_variant_overlap: dict_variant_overlap[var_chr] = {};
+					if var_chr not in dict_variant_overlap: dict_variant_overlap[var_chr] = collections.OrderedDict()
 					if variant not in dict_variant_overlap[var_chr]: dict_variant_overlap[var_chr][variant] = [];
 					dict_variant_overlap[var_chr][variant].append(other_variant);
 
@@ -1266,8 +1288,9 @@ def process_mapping_result(input):
 	global bam_index;
 	global haplo_count_bam_exclude;
 
-	dict_variant_reads = {};
-	read_vars = {};
+	dict_variant_reads = collections.OrderedDict()
+	read_vars = collections.OrderedDict()
+
 	stream_in = open(input, "r");
 	total_reads = 0;
 	chrom = "";
@@ -1429,7 +1452,14 @@ def generate_variant_dict(fields):
 	else:
 		rsid = fields[1];
 
-	return({"id":fields[1], "rsid":rsid,"ref":all_alleles[0],"chr":id_split[0],"pos":int(id_split[1]),"alleles":ind_alleles,"phase":phase, "gw_phase":phase, "maf":maf, "other_reads":[], "reads":[[] for i in range(len(ind_alleles))], "haplo_reads":[{} for i in range(len(ind_alleles))]});
+	return collections.OrderedDict(
+		[("id", fields[1]), ("rsid", rsid), ("ref", all_alleles[0]),
+		 ("chr", id_split[0]), ("pos", int(id_split[1])), ("alleles", ind_alleles),
+		 ("phase", phase), ("gw_phase", phase), ("maf", maf), ("other_reads", []),
+		 ("reads", [[] for i in range(len(ind_alleles))]),
+		 ("haplo_reads", [collections.OrderedDict() for i in range(len(ind_alleles))])])
+
+	#return({"id":fields[1], "rsid":rsid,"ref":all_alleles[0],"chr":id_split[0],"pos":int(id_split[1]),"alleles":ind_alleles,"phase":phase, "gw_phase":phase, "maf":maf, "other_reads":[], "reads":[[] for i in range(len(ind_alleles))], "haplo_reads":[{} for i in range(len(ind_alleles))]});
 
 def phase_block_container(input):
 	#stream_out = open(input[0],"w");
@@ -1518,7 +1548,7 @@ def phase_block(input):
 	# if we get here we failed to find a full block, so just return the best one and try to phase the remainder
 	# remove phased variants from connections
 	unphased_vars = [];
-	unphased_var_connections = {};
+	unphased_var_connections = collections.OrderedDict()
 
 	for variant in variants:
 		if variant+":0" in largest_block or variant+":1" in largest_block:
@@ -1683,12 +1713,6 @@ def write_vcf(out_prefix, chromosome_of_interest):
 			if args.gw_phase_vcf == 2:
 				if "##FORMAT=<ID=PS," not in format_text: vcf_out.write("##FORMAT=<ID=PS,Number=1,Type=String,Description=\"Phase Set\">\n");
 
-			### debugging ??? ####
-			# add new tags : PG_al, RPS (Readbacked phasing score),
-			# add PI in an order (use ordered dict)
-
-
-
 			# if multiple samples only output phased sample
 			out_cols = vcf_columns[0:9] + [vcf_columns[9]];
 			vcf_out.write("\t".join(out_cols)+"\n");
@@ -1735,7 +1759,7 @@ def write_vcf(out_prefix, chromosome_of_interest):
 					vcf_columns[8] = ":".join(vcf_format_fields);
 
 					#generate a unique id
-					unique_id = chrom+args.id_separator+str(pos)+args.id_separator+(args.id_separator.join(all_alleles));
+					unique_id = chrom + args.id_separator + str(pos) + args.id_separator + (args.id_separator.join(all_alleles));
 
 					if unique_id in set_phased_vars:
 						# retrieve the correct allele number of each allele
@@ -1834,9 +1858,7 @@ def str_join(joiner,list):
 	return(joiner.join(list));
 
 def build_haplotypes(input):
-
 	dict_variant_overlap = copy.deepcopy(input);
-
 	block_haplotypes = [];
 	total_hap_pool = len(dict_variant_overlap);
 	remaining_hap_pool = dict_variant_overlap;
@@ -1992,7 +2014,8 @@ def print_warning(text):
 		fun_flush_print(text);
 
 def dict_from_info(info_field):
-	out_dict = {};
+	out_dict = collections.OrderedDict()
+
 	fields = info_field.split(";");
 	for field in fields:
 		sub_field = field.split("=");
@@ -2070,7 +2093,8 @@ def parallelize(function, pool_input):
 	return(pool_output);
 
 def annotation_to_dict(text,sep=";"):
-	dict_out = {};
+	dict_out = collections.OrderedDict()
+
 	vars = text.split(sep);
 	for var in vars:
 		if "=" in var:
@@ -2085,12 +2109,12 @@ def phase_v3(input):
 	variant_connections = input[1];
 	allele_connections = input[2];
 
-
 	# first check to see if haplotype is fully concordant
 	# if it is simply return the haplotype
 	xhap = resolve_phase(variants, allele_connections);
 	if xhap != None:
 		final_blocks = xhap;
+
 	else:
 		# if there is no concordant select phase with most support in terms of connections
 
@@ -2149,7 +2173,8 @@ def resolve_phase(variants, allele_connections, clean_connections = False):
 	# if needed remove connections from allele_connections that are not in the variant list
 	if clean_connections == True:
 		set_variants = set(variants);
-		cleaned_connections = {};
+		cleaned_connections = collections.OrderedDict()
+
 		for allele in allele_connections:
 			variant = allele.split(":")[0];
 			if variant in set_variants:
@@ -2199,8 +2224,7 @@ def sub_block_phase(variants, allele_connections, sub_block_configs=[], attempt_
 		# otherwise determine all possible configurations in this block
 		configurations = ["".join(seq) for seq in itertools.product("01", repeat=len(variants))];
 
-	supporting_connections = {};
-
+	supporting_connections = collections.OrderedDict()
 	set_variants = set(variants);
 
 	for configuration in configurations:
@@ -2285,7 +2309,7 @@ def find_weak_points(variants, variant_connections):
 	# this function reports how many connections are crossing each point, where a point is between a pair of variants
 	# it returns a dictionary with the counts at each point
 
-	dict_counts = {};
+	dict_counts = collections.OrderedDict()
 
 	for position in range(2,len(variants)-1):
 		dict_counts[position] = 0;
