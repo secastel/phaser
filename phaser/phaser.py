@@ -81,7 +81,7 @@ def main():
 	args = parser.parse_args()
 
 	#setup
-	version = "1.0.1";
+	version = "1.1.0";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -266,6 +266,7 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 		This is helpful is the computer RAM is limited. 
 		Ironically, this mode might be faster if memory congestion occurs in "all reads" mode.'''
 		print('    Memory efficient mode is activated... ')
+		print('    WARNING: this may produce slightly different results since the sequencing noise estimate is generated per chromosome, instead of across all chromosomes... ')
 
 		## prepare the list of the contig/chromosome names in the input VCF
 		if args.chr == '':
