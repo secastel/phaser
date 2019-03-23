@@ -81,7 +81,7 @@ def main():
 	args = parser.parse_args()
 
 	#setup
-	version = "1.1.0";
+	version = "1.1.1";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
@@ -1697,12 +1697,11 @@ def write_vcf(out_prefix, chromosome_of_interest):
 	set_phased_vars = set(haplotype_lookup.keys());
 	format_text = "";
 	for line in vcf_in:
+		vcf_columns = line.replace("\n","").split("\t");
 		if "##FORMAT" in line:
 			format_text += line;
 			vcf_out.write(line);
-
-		vcf_columns = line.replace("\n","").split("\t");
-		if line.startswith("#CHROM"):
+		elif line.startswith("#CHROM"):
 			# we reached the end of the format section
 			# dump it and add phaser format fields if needed
 			if "##FORMAT=<ID=PG," not in format_text: vcf_out.write("##FORMAT=<ID=PG,Number=1,Type=String,Description=\"phASER Local Genotype\">\n");
