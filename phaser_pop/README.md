@@ -46,7 +46,6 @@ Estimates effect sizes of regulatory variants using aggregated phASER haplotypic
 * **--t** _(1)_ - Number of threads to use.
 
 ## Output File
-Each row is a gene and each column is a single string per sample per gene in the format “HAP_A_COUNT|HAP_B_COUNT”.
 
 * 1 - **gene** - Gene ID
 * 2 - **var_id** - Variant ID
