@@ -23,7 +23,7 @@ Aggregates gene-level haplotypic expression measurement files across samples to 
 * **--t** _(1)_ - Number of threads to use.
 
 ## Output File
-Each row is a gene and each column is a single string per sample per gene in the format “HAP_A_COUNT|HAP_B_COUNT”.
+Each row is a gene and each column is a single string per sample per gene in the format “HAP_A_COUNT|HAP_B_COUNT”. Two output files are generated, one using only genome wide phased haplotype counts, such that the haplotype assignment is consistent across genes within an individual and with the input phased VCF. Another is generated that does not ensure genome wide haplotype phasing across genes, which includes more counts, but makes the haplotype assignment of A/B arbitrary and unrelated across genes within an individual or the VCF. Note: only the "gw_phased" output file may be used with phaser_cis_var.py as consistent phasing is required.
 
 # phaser_cis_var.py
 ## Usage
