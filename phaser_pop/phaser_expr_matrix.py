@@ -20,8 +20,8 @@ def main():
 	
 	# make needed temporary directories
 	if not os.path.isdir("tmp"): subprocess.call("mkdir tmp", shell=True);
-	if not os.path.isdir("tmp/all"): subprocess.call("mkdir tmp", shell=True);
-	if not os.path.isdir("tmp/gw_phased"): subprocess.call("mkdir tmp", shell=True);
+	if not os.path.isdir("tmp/all"): subprocess.call("mkdir tmp/all", shell=True);
+	if not os.path.isdir("tmp/gw_phased"): subprocess.call("mkdir tmp/gw_phased", shell=True);
 	
 	version = "0.1.0";
 	print("");
@@ -32,9 +32,9 @@ def main():
 	print("");
 
 	print("#1 Loading gene feature file...");
-	df_features = pandas.read_csv(args.features, sep="\t", index_col=False,header=None);
+	df_features = pandas.read_csv(args.features, sep="\t", index_col=False,header=None, comment="#");
 	global gene_list;
-	gene_list = df_features[3].tolist();
+	gene_list = df_features[3].tolist()
 
 	print("#2 Loading gene ae files...");
 	xinput = [];
