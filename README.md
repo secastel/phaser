@@ -11,7 +11,7 @@ Haplotype-level ASE data is publicly available for all 15,253 samples spanning 5
 
 phASER is made available under the [GNU GENERAL PUBLIC LICENSE v3](https://github.com/secastel/phaser/tree/master/LICENSE).
 
-Documentation Pages: [phASER](https://github.com/secastel/phaser/tree/master/phaser), [phASER Annotate](https://github.com/secastel/phaser/tree/master/phaser_annotate), [phASER Gene AE](https://github.com/secastel/phaser/tree/master/phaser_gene_ae)
+Documentation Pages: [phASER](https://github.com/secastel/phaser/tree/master/phaser), [phASER Annotate](https://github.com/secastel/phaser/tree/master/phaser_annotate), [phASER Gene AE](https://github.com/secastel/phaser/tree/master/phaser_gene_ae), [phaser-POP](https://github.com/secastel/phaser/tree/master/phaser_pop)
 
 ![alt tag](https://raw.github.com/secastel/phaser/master/docs/phaser_workflow.png)
 
