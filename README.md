@@ -5,7 +5,9 @@ Performs haplotype phasing using read alignments in BAM format from both DNA and
 
 Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
-Please see our paper in [Nature Communications](http://www.nature.com/articles/ncomms12817) for details and benchmarking of the method.
+Please see our paper in [Nature Communications](http://www.nature.com/articles/ncomms12817) for details and benchmarking of the method and our publication in [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-020-02122-z) for its application to the GTEx v8 data set and details of the phASER-pop extension.
+
+Haplotype-level ASE data is publicly available for all 15,253 samples spanning 54 human tissues from the GTEx project version 8 release through the [GTEx Portal](https://www.gtexportal.org/home/datasets#filesetFilesDiv110) under the "Haplotype Expression Matrices" section.
 
 phASER is made available under the [GNU GENERAL PUBLIC LICENSE v3](https://github.com/secastel/phaser/tree/master/LICENSE).
 
