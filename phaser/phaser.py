@@ -53,7 +53,7 @@ def main():
 	parser.add_argument("--chr_prefix", type=str, default="", help="Add the string to the begining of the VCF contig name. For example set to 'chr' if VCF contig is listed as '1' and bam reference is 'chr1'.")
 
 	# genome wide phasing
-	parser.add_argument("--gw_phase_method", type=int, default=0, help="Method to use for determing genome wide phasing. NOTE requires input VCF to be phased, and optionally a VCF with allele frequencies (see --gw_af_vcf). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.")
+	parser.add_argument("--gw_phase_method", type=int, default=0, help="Method to use for determing genome wide phasing. NOTE requires input VCF to be phased and have allele frequencies for MAF weighted mode (see --gw_af_field). 0 = Use most common haplotype phase. 1 = MAF weighted phase anchoring.")
 	parser.add_argument("--gw_af_field", default="AF", help="Field from --vcf to use for allele frequency.")
 	parser.add_argument("--gw_phase_vcf", type=int, default=0, help="Replace GT field of output VCF using phASER genome wide phase. 0: do not replace; 1: replace when gw_confidence >= --gw_phase_vcf_min_confidence; 2: as in (1), but in addition replace with haplotype block phase when gw_confidence < --gw_phase_vcf_min_confidence and include PS field. See --gw_phase_method for options.")
 	parser.add_argument("--gw_phase_vcf_min_confidence", type=float, default=0.90, help="If replacing GT field in VCF, only replace when phASER haplotype gw_confidence >= this value.")
