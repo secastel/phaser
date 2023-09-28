@@ -31,7 +31,7 @@ def main():
 	version = "0.1.0";
 	print("");
 	print("##################################################")
-	print(("          Welcome to phASER-POP v%s"%(version)));
+	print("          Welcome to phASER-POP v%s"%(version));
 	print("  Author: Stephane Castel (scastel@nygenome.org)")
 	print("##################################################");
 	print("");
@@ -42,21 +42,21 @@ def main():
 	print("#1 Loading sample map...")
 	df_map = pandas.read_csv(args.map, sep="\t", index_col=False);
 	global dict_map;
-	dict_map = dict(list(zip(df_map['vcf_sample'],df_map['bed_sample'])));
+	dict_map = dict(zip(df_map['vcf_sample'],df_map['bed_sample']));
 
 	print("#2 Loading variant gene pairs...")
 	global df_pairs;
 	df_pairs = pandas.read_csv(args.pairs, sep="\t", index_col=False);
 	if args.ignore_v == 1: df_pairs['gene_id'] = [x.split(".")[0] for x in df_pairs['gene_id']];
 	if args.chr != "":
-		df_pairs['var_contig'] = list(map(str, df_pairs['var_contig']))
+		df_pairs['var_contig'] = map(str, df_pairs['var_contig'])
 		df_pairs = df_pairs[(df_pairs.var_contig == args.chr)];
 
 	print("#3 Loading phASER BED...")
 	global df_phaser;
 	in_bed = args.bed;
 	if args.chr != "":
-		print(("     subsetting chr %s from input BED..."%(args.chr)));
+		print("     subsetting chr %s from input BED..."%(args.chr));
 		xfile = tempfile.NamedTemporaryFile(delete=False);
 		in_bed = xfile.name;
 		xfile.close();
@@ -134,12 +134,12 @@ def measure_effect(xindices):
 				if (row_test['var_ref'] != "" and row_test['var_alt'] != ""  and xrecord['REF'] == row_test['var_ref'] and xrecord['ALT'] == row_test['var_alt']) or (xrecord['ID'] == row_test['var_id']):
 					gt_index = xrecord['FORMAT'].split(":").index("GT");
 					# got the variant, now retrieve each individual's genotype
-					for xsamp in list(dict_map.keys()):
+					for xsamp in dict_map.keys():
 						if xsamp in xrecord and dict_map[xsamp] in df_phaser.columns:
 							xgt = xrecord[xsamp].split(":")[gt_index];
 							# need phased genotype data
 							if "|" in xgt:
-								counts = list(map(float,row_phaser[dict_map[xsamp]].split("|")));
+								counts = map(float,row_phaser[dict_map[xsamp]].split("|"));
 								if sum(counts) >= args.min_cov:
 									afc_phaser = log(float(counts[0]+args.pc)/float(counts[1]+args.pc),2);
 									if "0" in xgt and "1" in xgt:
@@ -160,8 +160,8 @@ def measure_effect(xindices):
 					
 					# calculate |aFC|
 					abs_afcs = [[],[]];
-					abs_afcs[0] = list(map(abs,afcs[0]));
-					abs_afcs[1] = list(map(abs,afcs[1]));
+					abs_afcs[0] = map(abs,afcs[0]);
+					abs_afcs[1] = map(abs,afcs[1]);
 
 					# bootstrap 95% CIs
 					het_ci = bootstrap_ci(afcs[0],args.bs,numpy.median,True)
@@ -227,7 +227,7 @@ class vcf_reader:
 		self.tabix_vcf = pysam.Tabixfile(vcf_path,"r");
 		# get the column names
 		col_names = subprocess.check_output("tabix -H "+vcf_path+" | grep 'CHROM'", shell=True).replace("#","").rstrip().split("\t");
-		self.dict_cols = dict(list(zip(list(range(0,len(col_names))),col_names)));
+		self.dict_cols = dict(zip(range(0,len(col_names)),col_names));
 		self.af_cache = {};
 	
 	def retrieve_variant(self,xchr,xpos):
@@ -242,7 +242,7 @@ class vcf_reader:
 	def row_to_dict(self, row):
 		dict_out = {};
 		row = row.rstrip().split("\t");
-		for xcol, xname in zip(list(self.dict_cols.keys()),list(self.dict_cols.values())):
+		for xcol, xname in zip(self.dict_cols.keys(),self.dict_cols.values()):
 			dict_out[xname] = row[xcol];
 		return(dict_out);
 

@@ -24,7 +24,7 @@ def main():
 	version = "1.2.0";
 	print("");
 	print("##################################################")
-	print(("          Welcome to phASER Gene AE v%s"%(version)));
+	print("          Welcome to phASER Gene AE v%s"%(version));
 	print("  Author: Stephane Castel (scastel@nygenome.org)")
 	print("##################################################");
 	print("");
@@ -86,7 +86,7 @@ def main():
 	print("#3 Processing results...")
 	# produce a separate output file for each bam
 	for xbam in set(df_haplo_counts_master['bam']):
-		print(("    BAM: %s"%(xbam)))
+		print("    BAM: %s"%(xbam))
 		print("          generating feature level haplotypic counts...");
 		maf_filtered = 0;
 		df_haplo_counts = df_haplo_counts_master[(df_haplo_counts_master.bam == xbam)];
@@ -140,11 +140,11 @@ def main():
 							dict_features[feature_index]['unphased_variants'] = mapped_reads['variants'];
 
 		if maf_filtered > 0:
-			print(("          %d of %d haplotypes treated as unphased due to low MAF"%(maf_filtered, len(df_haplo_counts.index))));
+			print("          %d of %d haplotypes treated as unphased due to low MAF"%(maf_filtered, len(df_haplo_counts.index)));
 
 		print("          outputting feature haplotype counts...");
 
-		for index in range(0,len(list(dict_features.keys()))):
+		for index in range(0,len(dict_features.keys())):
 			# decide whether to use unphased or phased counts
 			# use whichever is higher
 			if (dict_features[index]['aCount'] + dict_features[index]['bCount']) >= (dict_features[index]['unphased_aCount'] + dict_features[index]['unphased_bCount']):
@@ -198,8 +198,8 @@ def variant_feature_reads(row,feature):
 			if len(xvars) == 1:
 				# if haplotype only has one variant then there are no read names since they are not needed
 				# generate some fake read ids
-				hap_a_reads += list(map(str,list(range(0,int(row['aCount'])))));
-				hap_b_reads += list(map(str,list(range(0,int(row['bCount'])))));
+				hap_a_reads += map(str,range(0,int(row['aCount'])));
+				hap_b_reads += map(str,range(0,int(row['bCount'])));
 			else:
 				hap_a_reads += str(row['aReads']).split(";")[xvar_index].split(",");
 				hap_b_reads += str(row['bReads']).split(";")[xvar_index].split(",");
