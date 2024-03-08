@@ -115,8 +115,8 @@ def main():
 			fatal_error("File %s is needed for phASER to run."%xfile);
 
 	# check that setup has been run
-	if os.path.isfile(return_script_path()+"/"+'read_variant_map.so') == False:
-		fatal_error("Read Variant Mapper module must be compiled by running 'python setup.py build_ext --inplace'.");
+	# if os.path.isfile(return_script_path()+"/"+'read_variant_map.so') == False:
+	# 	fatal_error("Read Variant Mapper module must be compiled by running 'python setup.py build_ext --inplace'.");
 
 	# check that the VCF of interest exists in bgzipped form and is indexed
 	if os.path.isfile(args.vcf) == False:
@@ -543,7 +543,8 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 		use_as_cutoff = False;
 
 		if args.as_q_cutoff > 0:
-			alignment_scores = list(map(int,[x for x in subprocess.check_output("set -euo pipefail && "+"cut -f 5 "+" ".join(result_files), shell=True, executable='/bin/bash').split("\n") if x != ""]));
+			result_files = [str(x) for x in result_files]
+			alignment_scores = list(map(int,[x for x in subprocess.check_output("set -euo pipefail && "+"cut -f 5 "+" ".join(result_files), shell=True, executable='/bin/bash').decode('utf-8').split("\n") if x != ""]))
 			if len(alignment_scores) == 0:
 				fun_flush_print("          no alignment score value found in reads, cannot use cutoff");
 			else:
@@ -1854,7 +1855,7 @@ def write_vcf(out_prefix, chromosome_of_interest):
 	return([unphased_phased, phase_corrections]);
 
 def str_join(joiner,list):
-	list = list(map(str, list));
+	list = map(str, list);
 	return(joiner.join(list));
 
 def build_haplotypes(input):
