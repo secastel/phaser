@@ -67,7 +67,7 @@ def do_read_variant_map(variant_table, baseq, o, splice, isize_cutoff):
 				if line_variant != None:
 					if line_variant.chr != read_chr:
 						if line_variant.chr not in contigs:
-							print("Error, VCF and BAM contigs do not match VCF = %s BAM = %s"%(line_variant.chr,read_chr));
+							print(("Error, VCF and BAM contigs do not match VCF = %s BAM = %s"%(line_variant.chr,read_chr)));
 							sys.exit(1)
 						else:
 							vindex = contigs.index(line_variant.chr);
@@ -120,7 +120,7 @@ def do_read_variant_map(variant_table, baseq, o, splice, isize_cutoff):
 		read_counter += 1;
 		
 		if read_counter%100000 == 0:
-			print("               processed %d reads, buffer_size = %d, position = %s:%d"%(read_counter,len(variant_buffer),read_chr,read_pos));
+			print(("               processed %d reads, buffer_size = %d, position = %s:%d"%(read_counter,len(variant_buffer),read_chr,read_pos)));
 	stream_out.close();
 	
 class variant:

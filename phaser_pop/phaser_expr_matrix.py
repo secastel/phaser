@@ -26,7 +26,7 @@ def main():
 	version = "0.1.0";
 	print("");
 	print("##################################################")
-	print("        Welcome to phASER-POP v%s"%(version));
+	print(("        Welcome to phASER-POP v%s"%(version)));
 	print("  Author: Stephane Castel (scastel@nygenome.org)")
 	print("##################################################");
 	print("");
@@ -121,7 +121,7 @@ def read_result(xinput):
 
 			out.append(sample);
 		else:
-			print("ERROR - "+path+":"+xsample+" genes are not in correct order...")
+			print(("ERROR - "+path+":"+xsample+" genes are not in correct order..."))
 
 	return(out);
 
