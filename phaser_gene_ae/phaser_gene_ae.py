@@ -25,7 +25,7 @@ def main():
 	print("");
 	print("##################################################")
 	print(("          Welcome to phASER Gene AE v%s"%(version)));
-	print("  Author: Stephane Castel (scastel@nygenome.org)")
+	print("  Author: Stephane Castel (stephanecastel@gmail.com)")
 	print("##################################################");
 	print("");
 
