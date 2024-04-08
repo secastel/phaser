@@ -6,7 +6,7 @@ Performs haplotype phasing using read alignments in BAM format from both DNA and
 
 Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
-Runs on Python 2.7.x and has the following dependencies: [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [tabix](http://www.htslib.org/doc/tabix.html), [bedtools](http://bedtools.readthedocs.org), [Cython](http://cython.org), [pysam](https://pysam.readthedocs.io).
+Runs on Python 3.x.x and has the following dependencies: [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [tabix](http://www.htslib.org/doc/tabix.html), [bedtools](http://bedtools.readthedocs.org), [Cython](http://cython.org), [pysam](https://pysam.readthedocs.io).
 
 # Citation
 Castel, S. E., Mohammadi, P., Chung, W. K., Shen, Y. & Lappalainen, T. Rare variant phasing and haplotypic expression from RNA sequencing with phASER. Nat Commun 7, 12817 (2016).
@@ -18,7 +18,7 @@ A bug was introduced in version 0.9.8 (12/16/16) and fixed in version 0.9.9.4 (0
 I have written a [step-by-step tutorial](https://stephanecastel.wordpress.com/2017/02/15/how-to-generate-ase-data-with-phaser/) describing how to use phASER to generate ASE data. If you aren't sure where to start give this a read.
 
 # Setup
-Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command: "python2.7 setup.py build_ext --inplace". **NOTE** Cython requires the package python-devel to be installed. This can be installed using a package manager using e.g. "yum install python-devel.x86_64".
+Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command: "python3 setup.py build_ext --inplace". **NOTE** Cython requires the package python-devel to be installed. This can be installed using a package manager using e.g. "yum install python-devel.x86_64".
 
 # Usage
 Requires a VCF and BAM, produces a VCF with computed haplotype phases and result files containing haplotype details, statistics, and read counts. By default only sites with the "PASS" flag in the VCF will be considered, however this behavior can be changed using the "--pass_only 0" argument.
@@ -33,7 +33,7 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 
 Run command:
 
-python2.7 phaser.py --vcf NA06986.vcf.gz --bam NA06986.2.M_111215_4.bam --paired_end 1 --mapq 255 --baseq 10 --sample NA06986 --o phaser_test_case
+python3 phaser.py --vcf NA06986.vcf.gz --bam NA06986.2.M_111215_4.bam --paired_end 1 --mapq 255 --baseq 10 --sample NA06986 --o phaser_test_case
 
 **Useful files**
 
@@ -73,7 +73,7 @@ All input BAMs will be used to generate haplotypes and phase variants, so they m
 * **--o** - Output file prefix name.
 
 # Optional
-* **--python_string** _(python2.7)_ - Command to use when calling python, required for running read variant mapping script.
+* **--python_string** _(python3)_ - Command to use when calling python, required for running read variant mapping script.
 * **--haplo_count_bam_exclude** _()_ - Comma separated list of BAMs to exclude when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank haplotypic counts will be generated for all input BAMs, otherwise will they will not be generated for the BAMs specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...
 * **--haplo_count_blacklist** _()_ - BED file containing genomic intervals to be excluded from haplotypic counts. Reads from any variants which lie within these regions will not be counted for haplotypic counts. This will not affect phasing.
 * **--cc_threshold** _(0.01)_ - Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration p-value lower than this threshold will be removed.
