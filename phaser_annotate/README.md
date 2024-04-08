@@ -1,7 +1,7 @@
 # phASER Annotate
 Takes an input phased VCF and SNP annotation and outputs all possible allele configurations.
 
-Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
+Developed by [Stephane E. Castel](mailto:stephanecastel@gmail.com) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
 Runs on Python 2.7.x and has the following dependencies: [pysam](https://github.com/pysam-developers/pysam), [pyVCF](https://pyvcf.readthedocs.org)
 
