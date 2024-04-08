@@ -37,7 +37,7 @@ def main():
 
 
 	# optional
-	parser.add_argument("--python_string", default="python2.7", help="Command that specifies which python2.x interpreter has to be used, required for running read variant mapping script.")
+	parser.add_argument("--python_string", default="python3", help="Command that specifies which python2.x interpreter has to be used, required for running read variant mapping script.")
 	parser.add_argument("--haplo_count_bam_exclude", default="", help="Comma separated list of BAMs to exclude when generating haplotypic counts (outputted in o.haplotypic_counts.txt). When left blank haplotypic counts will be generated for all input BAMs, otherwise will they will not be generated for the BAMs specified here. Specify libraries by index where 1 = first library in --bam list, 2 = second, etc...")
 	parser.add_argument("--haplo_count_blacklist", default="", help="BED file containing genomic intervals to be excluded from haplotypic counts. Reads from any variants which lie within these regions will not be counted for haplotypic counts.")
 	parser.add_argument("--cc_threshold", type=float, default=0.01, help="Threshold for significant conflicting variant configuration. The connection between any two variants with a conflicting configuration having p-value lower than this threshold will be removed.")
@@ -81,11 +81,11 @@ def main():
 	args = parser.parse_args()
 
 	#setup
-	version = "1.1.1";
+	version = "1.2.0";
 	fun_flush_print("");
 	fun_flush_print("##################################################")
 	fun_flush_print("              Welcome to phASER v%s"%(version));
-	fun_flush_print("  Author: Stephane Castel (scastel@nygenome.org)")
+	fun_flush_print("  Author: Stephane Castel (stephanecastel@gmail.com)")
 	fun_flush_print("  Updated by: Bishwa K. Giri (bkgiri@uncg.edu)")
 	fun_flush_print("##################################################");
 	fun_flush_print("");
@@ -231,7 +231,7 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 	set_haplo_blacklist = [];
 	if args.haplo_count_blacklist != "":
 		fun_flush_print("#1b. Loading haplotypic count blacklist intervals...");
-		raw_interval = subprocess.check_output("set -euo pipefail && "+"bedtools intersect -a "+vcf_path+" -b "+args.haplo_count_blacklist+" | cut -f 1-2", shell=True, executable='/bin/bash')
+		raw_interval = subprocess.check_output("set -euo pipefail && "+"bedtools intersect -a "+vcf_path+" -b "+args.haplo_count_blacklist+" | cut -f 1-2", shell=True, executable='/bin/bash').decode('utf-8')
 		for line in raw_interval.split("\n"):
 			columns = line.replace("\n","").split("\t");
 			if len(columns) > 1:
@@ -2143,7 +2143,7 @@ def phase_v3(input):
 
 		for i in range(1, len(sub_block_phases)):
 			step_phases = [final_phase,sub_block_phases[i]];
-			used_vars = sum([sum([len(y) for y in x]) for x in step_phases]) / 2;
+			used_vars = math.ceil(sum([sum([len(y) for y in x]) for x in step_phases]) / 2);
 			#print(used_vars);
 			new_phase = sub_block_phase(variants[split_start:split_start+used_vars], allele_connections, step_phases);
 			# if phasing including the next block includes uncertainty then need to split
