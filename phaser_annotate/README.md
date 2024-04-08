@@ -3,7 +3,9 @@ Takes an input phased VCF and SNP annotation and outputs all possible allele con
 
 Developed by [Stephane E. Castel](mailto:stephanecastel@gmail.com) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
-Runs on Python 3.x.x has the following dependencies: [pysam](https://github.com/pysam-developers/pysam), [pyVCF](https://pyvcf.readthedocs.org)
+Runs on Python 2.7.x has the following dependencies: [pysam](https://github.com/pysam-developers/pysam), [pyVCF](https://pyvcf.readthedocs.org)
+
+**NOTE** pyVCF is not compatible with Python 3+ so this script cannot be updated.
 
 Requires that the CADD file containing all possible SNVs incl. all annotations for the reference of interest and its index be downloaded (can be found [here](http://cadd.gs.washington.edu/download)).
 
