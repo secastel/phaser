@@ -1,7 +1,7 @@
 # phASER Gene AE
 Uses output from phASER to produce gene level haplotype counts for allelic expression studies. It does this by summing reads from both single variants and phASER haplotype blocks using their phase for each gene.
 
-Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
+Developed by [Stephane E. Castel](mailto:stephanecastel@gmail.com) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
 Runs on Python 3.x.x and has the following dependencies: [pandas](http://pandas.pydata.org), [IntervalTree](https://github.com/jamescasbon/PyVCF)
 
