@@ -109,7 +109,7 @@ def main():
 							cadd_retrieve_list_pg.append([unique_id,info_fields,gt_alleles,block_index]);
 
 			else:
-				print("Column info error %s"%(unique_id));
+				print(("Column info error %s"%(unique_id)));
 
 	stream_vcf.close();
 
@@ -181,13 +181,13 @@ def main():
 		# first build the list of allele freqs to get
 		af_retrieve_list = set([]);
 
-		for variant in dict_gw_variant_info.keys():
+		for variant in list(dict_gw_variant_info.keys()):
 			for allele in dict_gw_variant_info[variant][1]:
 				chr = variant.split("_")[0];
 				pos = variant.split("_")[1];
 				af_retrieve_list.add(chr+"_"+pos+"_"+dict_gw_variant_info[variant][1][allele][7]);
 
-		for variant in dict_pg_variant_info.keys():
+		for variant in list(dict_pg_variant_info.keys()):
 			for allele in dict_pg_variant_info[variant][1]:
 				chr = variant.split("_")[0];
 				pos = variant.split("_")[1];
@@ -324,7 +324,7 @@ def get_variant_cadd(input):
 					if args.af_vcf == None:
 						if args.af_field in info_fields:
 							# make sure to get the right index if multi-allelic site
-							afs = map(float, info_fields[args.af_field].split(","));
+							afs = list(map(float, info_fields[args.af_field].split(",")));
 							allele_freq = afs[a_index-1];
 							#maf = min([1-allele_freq,allele_freq]);
 
