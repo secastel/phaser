@@ -20,7 +20,7 @@ I have written a [step-by-step tutorial](https://stephanecastel.wordpress.com/20
 # Setup
 Before phASER can be run the read variant mapper module must be compiled. This requires [Cython](http://cython.org) and can be performed with the following command:
 ```
-python3 setup.py build_ext --inplace".
+python3 setup.py build_ext --inplace
 ```
 **NOTE** Cython requires the package python-devel to be installed. This can be installed using a package manager using e.g. "yum install python-devel.x86_64".
 
