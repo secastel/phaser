@@ -5,7 +5,7 @@ The base phASER package produces gene-level haplotypic expression per individual
 
 ![alt tag](https://raw.github.com/secastel/phaser/master/docs/phaser_pop_workflow.png)
 
-Developed by [Stephane E. Castel](mailto:scastel@nygenome.org) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
+Developed by [Stephane E. Castel](mailto:stephanecastel@gmail.com) in the [Lappalainen Lab](http://tllab.org) at the New York Genome Center and Columbia University Department of Systems Biology.
 
 Runs on Python 2.7.x and has the following dependencies: [pandas](http://pandas.pydata.org), [Pysam](https://github.com/pysam-developers/pysam), [SciPy](http://www.scipy.org), [NumPy](http://www.numpy.org), [samtools](http://www.htslib.org), [tabix](http://www.htslib.org/doc/tabix.html)
 
