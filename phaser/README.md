@@ -32,8 +32,9 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 * BAM Index: https://www.dropbox.com/s/vunmr97j8v6dqi8/NA06986.2.M_111215_4.bam.bai?dl=0
 
 Run command:
-
+```
 python3 phaser.py --vcf NA06986.vcf.gz --bam NA06986.2.M_111215_4.bam --paired_end 1 --mapq 255 --baseq 10 --sample NA06986 --o phaser_test_case
+```
 
 **Useful files**
 
