@@ -77,7 +77,7 @@ def main():
 			use_lines.append(xline);
 		xcols = xline.split("\t");
 		if args.ignore_v == True: xcols[1] = xcols[1].split(".")[0];
-		if xcols[1] in set_use_genes:
+		if xcols[3] in set_use_genes:
 			use_lines.append(xline);
 
 	df_phaser = pandas.read_csv(StringIO("\n".join(use_lines)), sep="\t");
