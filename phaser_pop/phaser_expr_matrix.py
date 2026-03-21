@@ -4,6 +4,7 @@ import pandas;
 import multiprocessing;
 import subprocess;
 import argparse;
+import shlex;
 
 ## THIS NEEDS TO BE UPDATED TO USE PROPER TEMPORARY FILE SYSTEMS
 
@@ -65,7 +66,14 @@ def main():
 		xdf = pandas.read_csv("tmp/all/"+xsample+".txt", sep="\t", index_col=False);
 		df_matrix[xsample] = xdf[xsample];
 	df_matrix.to_csv(args.o+".bed", sep="\t", index=False);
-	subprocess.call("bgzip -f "+args.o+".bed; tabix -p bed -f "+args.o+".bed.gz", shell=True);
+	out_bed = args.o + ".bed"
+	subprocess.call(
+		"bgzip -f "
+		+ shlex.quote(out_bed)
+		+ "; tabix -p bed -f "
+		+ shlex.quote(out_bed + ".gz"),
+		shell=True,
+	);
 	subprocess.call("rm tmp/all/*.txt", shell=True);
 
 	print("#4 Saving sample matrix (gw_phased)...")
@@ -74,7 +82,14 @@ def main():
 		xdf = pandas.read_csv("tmp/gw_phased/"+xsample+".txt", sep="\t", index_col=False);
 		df_matrix[xsample] = xdf[xsample];
 	df_matrix.to_csv(args.o+".gw_phased.bed", sep="\t", index=False);
-	subprocess.call("bgzip -f "+args.o+".gw_phased.bed; tabix -p bed -f "+args.o+".gw_phased.bed.gz", shell=True);
+	out_bed = args.o + ".gw_phased.bed"
+	subprocess.call(
+		"bgzip -f "
+		+ shlex.quote(out_bed)
+		+ "; tabix -p bed -f "
+		+ shlex.quote(out_bed + ".gz"),
+		shell=True,
+	);
 	subprocess.call("rm tmp/gw_phased/*.txt", shell=True);
 
 def generate_basic_matrix(path):

@@ -8,8 +8,9 @@ import pysam;
 from scipy.stats import ranksums;
 from math import log;
 import tempfile;
-from pandas.compat import StringIO
+from io import StringIO
 import gzip;
+import shlex;
 
 def main():
 	parser = argparse.ArgumentParser();
@@ -60,12 +61,21 @@ def main():
 		xfile = tempfile.NamedTemporaryFile(delete=False);
 		in_bed = xfile.name;
 		xfile.close();
-		subprocess.call("tabix -h "+args.bed+" "+args.chr+": > "+in_bed, shell=True)
+		subprocess.call(
+			"tabix -h "
+			+ shlex.quote(args.bed)
+			+ " "
+			+ shlex.quote(args.chr + ":")
+			+ " > "
+			+ shlex.quote(in_bed),
+			shell=True,
+			executable="/bin/bash",
+		)
 
 	# filter the expression matrix to only load those genes we actually need to do the analysis
 	xfile = tempfile.NamedTemporaryFile(delete=False);
 	if ".gz" in in_bed:
-		stream_in = gzip.open(in_bed, "r");
+		stream_in = gzip.open(in_bed, "rt");
 	else:
 		stream_in = open(in_bed, "r");
 
@@ -106,7 +116,7 @@ def main():
 	df_result.to_csv(args.o, sep="\t", index=False);
 
 	if args.chr != "":
-		subprocess.call("rm "+in_bed, shell=True)
+		subprocess.call("rm " + shlex.quote(in_bed), shell=True)
 
 def measure_effect(xindices):
 	global args;
@@ -226,7 +236,11 @@ class vcf_reader:
 		# setup a reader
 		self.tabix_vcf = pysam.Tabixfile(vcf_path,"r");
 		# get the column names
-		col_names = subprocess.check_output("tabix -H "+vcf_path+" | grep 'CHROM'", shell=True).replace("#","").rstrip().split("\t");
+		col_names = subprocess.check_output(
+			"tabix -H " + shlex.quote(vcf_path) + " | grep 'CHROM'",
+			shell=True,
+			executable="/bin/bash",
+		).decode("utf-8").replace("#","").rstrip().split("\t");
 		self.dict_cols = dict(list(zip(list(range(0,len(col_names))),col_names)));
 		self.af_cache = {};
 	

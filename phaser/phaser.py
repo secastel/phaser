@@ -21,6 +21,7 @@ import glob
 import collections
 import datetime
 import io
+import shlex
 
 
 def main():
@@ -45,6 +46,8 @@ def main():
 	parser.add_argument("--as_q_cutoff", type=float, default=0.05, help="Bottom quantile to cutoff for read alignment score.")
 	parser.add_argument("--blacklist", default="", help="BED file containing genomic intervals to be excluded from phasing (for example HLA).")
 	parser.add_argument("--write_vcf", type=int, default=1, help="Create a VCF containing phasing information (0,1).")
+	parser.add_argument("--prefilter_hets", type=int, default=1, help="Prefilter the input VCF to heterozygous sites for the selected sample before phasing (0,1).")
+	parser.add_argument("--reintegrate_vcf", type=int, default=1, help="When --prefilter_hets = 1 and --write_vcf = 1, write output against the full input VCF for backward compatibility (1) or only against the het-filtered VCF for faster output (0).")
 	parser.add_argument("--include_indels", type=int, default=0, help="Include indels in the analysis (0,1). NOTE: since mapping is a problem for indels including them will likely result in poor quality phasing unless specific precautions have been taken.")
 	parser.add_argument("--output_read_ids", type=int, default=0, help="Output read IDs in the coverage files (0,1).")
 	parser.add_argument("--remove_dups", type=int, default=1, help="Remove duplicate reads from all analyses (0,1).")
@@ -60,6 +63,7 @@ def main():
 
 	# performance
 	parser.add_argument("--threads", type=int, default=1, help="Maximum number of threads to use. Note the maximum thread count for some tasks is bounded by the data (for example 1 thread per contig for haplotype construction).")
+	parser.add_argument("--io_threads", type=int, default=0, help="Thread count for I/O bound helpers (samtools view/bgzip). Set to 0 to disable multi-threaded I/O.")
 	parser.add_argument("--max_block_size", type=int, default=15, help="Maximum number of variants to phase at once. Number of haplotypes tested = 2 ^ # variants in block. Blocks larger than this will be split into sub blocks, phased, and then the best scoring sub blocks will be phased with each other.")
 	parser.add_argument("--temp_dir", default="", help="Location of temporary directory to use for storing files. If left blank will default to system temp dir. NOTE: potentially large files will be stored in this directory, so please ensure there is sufficient free space.")
 	parser.add_argument("--max_items_per_thread", type=int, default=100000, help="Maximum number of items that can be assigned to a single thread to process. NOTE: if this number is too high Python will stall when trying to join the pools.")
@@ -79,6 +83,13 @@ def main():
 
 	global args;
 	args = parser.parse_args()
+	global vcf_output_source_override;
+	vcf_output_source_override = "";
+
+	# Reintegration only applies when a het-prefiltered VCF is used as input.
+	if args.prefilter_hets == 0 and args.reintegrate_vcf != 0:
+		fun_flush_print("NOTE: --reintegrate_vcf is ignored when --prefilter_hets 0; disabling reintegration mode.");
+		args.reintegrate_vcf = 0;
 
 	#setup
 	version = "1.2.0";
@@ -109,7 +120,12 @@ def main():
 		tempfile.tempdir = args.temp_dir;
 
 	# check for needed files
-	needed_files = ['call_read_variant_map.py','read_variant_map.py'];
+	needed_files = [
+		'call_read_variant_map.py',
+		'call_read_variant_map_bam.py',
+		'call_read_variant_map_bam_fast.py',
+		'read_variant_map.py',
+	];
 	for xfile in needed_files:
 		if os.path.isfile(return_script_path()+"/"+xfile) == False:
 			fatal_error("File %s is needed for phASER to run."%xfile);
@@ -199,15 +215,57 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 	else:
 		fatal_error("Sample '%s' not found in the input VCF file." % (sample_name));
 
+	global vcf_output_source_override;
+	vcf_output_source_override = args.vcf;
+	prefilter_vcf_path = "";
+	prefilter_vcf_index = "";
+	vcf_input_for_parse = args.vcf;
+
+	if args.prefilter_hets == 1:
+		fun_flush_print("    prefiltering VCF to heterozygous sites for sample '%s'..." % (sample_name));
+		vcf_prefilter = tempfile.NamedTemporaryFile(delete=False, suffix=".hets.vcf.gz");
+		vcf_prefilter.close();
+		prefilter_vcf_path = vcf_prefilter.name;
+		prefilter_vcf_index = prefilter_vcf_path + ".tbi";
+
+		region_arg = "";
+		if args.chr != "":
+			region_arg = " -r " + shlex.quote(args.chr);
+		call_prefilter = (
+			"bcftools view -s "
+			+ shlex.quote(sample_name)
+			+ " -g het"
+			+ region_arg
+			+ " -Oz -o "
+			+ shlex.quote(prefilter_vcf_path)
+			+ " "
+			+ shlex.quote(args.vcf)
+		);
+		subprocess.check_call("set -euo pipefail && " + call_prefilter, shell=True, executable="/bin/bash")
+		subprocess.check_call(
+			"set -euo pipefail && tabix -f -p vcf " + shlex.quote(prefilter_vcf_path),
+			shell=True,
+			executable="/bin/bash",
+		)
+		vcf_input_for_parse = prefilter_vcf_path;
+		if args.reintegrate_vcf == 0:
+			vcf_output_source_override = prefilter_vcf_path;
+
 
 	# filter blacklisted variants if necessary, cut only sample column, filter for heterozygous sites
 	# decompress for intersection
+	vcf_q = shlex.quote(vcf_input_for_parse)
 	if args.chr != "":
 		fun_flush_print("    restricting to chromosome '%s'..." % (args.chr));
-		decomp_str = "tabix -h "+args.vcf+" "+args.chr+":"
+		decomp_str = "tabix -h " + vcf_q + " " + shlex.quote(args.chr + ":")
 	else:
 		fun_flush_print("    using all the chromosomes ...");
-		decomp_str = "gunzip -c "+args.vcf;
+		decomp_str = "gunzip -c " + vcf_q;
+
+	if args.prefilter_hets == 1:
+		cut_and_het_filter = "";
+	else:
+		cut_and_het_filter = " | cut -f 1-9," + str(sample_column + 1) + " | grep -v '0|0\\|1|1'";
 
 	## create a temporary file to store the VCF data
 	vcf_out = tempfile.NamedTemporaryFile(delete=False);
@@ -217,11 +275,23 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 
 	if args.blacklist != "":
 		fun_flush_print("    removing blacklisted variants and processing VCF...");
-		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep -v '0|0\|1|1' | bedtools intersect -header -v -a stdin -b "+args.blacklist+" > "+vcf_out.name;
+		call_str = (
+			decomp_str
+			+ cut_and_het_filter
+			+ " | bedtools intersect -header -v -a stdin -b "
+			+ shlex.quote(args.blacklist)
+			+ " > "
+			+ shlex.quote(vcf_out.name)
+		);
 		error_code = subprocess.check_call("set -euo pipefail && "+call_str,shell=True, executable='/bin/bash',stderr=devnull)
 	else:
 		fun_flush_print("    processing VCF...");
-		call_str = decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" | grep -v '0|0\|1|1' > "+vcf_out.name;
+		call_str = (
+			decomp_str
+			+ cut_and_het_filter
+			+ " > "
+			+ shlex.quote(vcf_out.name)
+		);
 		error_code = subprocess.check_call("set -euo pipefail && "+call_str,shell=True, executable='/bin/bash')
 
 	if error_code != 0:
@@ -231,7 +301,16 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 	set_haplo_blacklist = [];
 	if args.haplo_count_blacklist != "":
 		fun_flush_print("#1b. Loading haplotypic count blacklist intervals...");
-		raw_interval = subprocess.check_output("set -euo pipefail && "+"bedtools intersect -a "+vcf_path+" -b "+args.haplo_count_blacklist+" | cut -f 1-2", shell=True, executable='/bin/bash').decode('utf-8')
+		raw_interval = subprocess.check_output(
+			"set -euo pipefail && "
+			+ "bedtools intersect -a "
+			+ shlex.quote(vcf_path)
+			+ " -b "
+			+ shlex.quote(args.haplo_count_blacklist)
+			+ " | cut -f 1-2",
+			shell=True,
+			executable="/bin/bash",
+		).decode("utf-8")
 		for line in raw_interval.split("\n"):
 			columns = line.replace("\n","").split("\t");
 			if len(columns) > 1:
@@ -271,7 +350,7 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 		## prepare the list of the contig/chromosome names in the input VCF
 		if args.chr == '':
 			# if original args.chr was empty, use all the chromosomes
-			argu0 = ["tabix -l " + args.vcf]
+			argu0 = ["tabix -l " + shlex.quote(vcf_input_for_parse)]
 			process_col0 = subprocess.Popen(argu0, stdout=subprocess.PIPE,
 											stderr=subprocess.PIPE, shell=True, executable='/bin/bash')
 			uniq_chr = process_col0.communicate()[0]
@@ -319,6 +398,12 @@ def parse_sample(sample_name, map_sample_column, bam_file, sample_out_path, cont
 		## After the above for-loop process is complete, merge the data for several contigs/chromosomes
 		# This is only active in "process_slow = 1" mode.
 		merge_files(chr_of_interest, org_outprefix, sample_name)
+
+	if prefilter_vcf_path != "":
+		if os.path.isfile(prefilter_vcf_path): os.remove(prefilter_vcf_path);
+		if os.path.isfile(prefilter_vcf_index): os.remove(prefilter_vcf_index);
+		prefilter_csi = prefilter_vcf_path + ".csi";
+		if os.path.isfile(prefilter_csi): os.remove(prefilter_csi);
 
 # this is only active in "process_slow = 1" mode.
 def merge_files(chr_of_interest, org_outprefix, sample_name):
@@ -392,6 +477,8 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 	gt_index = -1;
 	chromosome_pool = collections.OrderedDict()
 	filter_count = 0;
+	last_fmt = None;
+	last_gt_index = -1;
 
 	for line in stream_vcf:
 		vcf_columns = line.rstrip('\n').split("\t");
@@ -409,11 +496,22 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 			if chrom_of_interest == "" or chrom_of_interest == chr:
 				if chr not in chromosome_pool:
 					chromosome_pool[chr] = [];
-				fields = vcf_columns[8].split(":");
+				fmt = vcf_columns[8];
+				if fmt != last_fmt:
+					fmt_fields = fmt.split(":");
+					if "GT" in fmt_fields:
+						last_gt_index = fmt_fields.index("GT");
+					else:
+						last_gt_index = -1;
+					last_fmt = fmt;
 
-				if "GT" in fields:
-					gt_index = fields.index("GT");
-					geno_string = vcf_columns[9].split(":")[gt_index];
+				gt_index = last_gt_index;
+				if gt_index != -1:
+					# Fast path: FORMAT is just GT.
+					if fmt == "GT" and gt_index == 0:
+						geno_string = vcf_columns[9];
+					else:
+						geno_string = vcf_columns[9].split(":")[gt_index];
 					xgeno = list(geno_string);
 					if "." not in xgeno:
 						if "|" in xgeno: xgeno.remove("|");
@@ -919,11 +1017,10 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 
 			for var_index in range(0, len(variants)):
 				id = variants[var_index];
-				allele = dict_variant_reads[id]['alleles'][int(hap_x[var_index])];
+				allele_index = int(hap_x[var_index]);
+				allele = dict_variant_reads[id]['alleles'][allele_index];
 				alleles[hap_index].append(allele);
 				phases[hap_index].append(get_allele_phase(allele,dict_variant_reads[id]));
-
-				allele_index = dict_variant_reads[id]['alleles'].index(allele);
 
 				set_reads[hap_index] += dict_variant_reads[id]['reads'][allele_index];
 
@@ -1031,7 +1128,7 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 		# update the variants with their corrected phases
 		for var_index in range(0,len(variants)):
 			variant = variants[var_index];
-			allele_index = dict_variant_reads[variant]['alleles'].index(alleles[0][var_index])
+			allele_index = int(haplotype_a[var_index]);
 			dict_variant_reads[variant]['gw_phase'][allele_index] = corrected_phases[0][var_index];
 			dict_variant_reads[variant]['gw_phase'][1-allele_index] = corrected_phases[1][var_index];
 
@@ -1069,8 +1166,8 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 						# check to see if variant is blacklisted
 						if chrom+"_"+str(pos) not in set_haplo_blacklist:
 
-							allele = dict_variant_reads[id]['alleles'][int(hap_x[var_index])];
-							allele_index = dict_variant_reads[id]['alleles'].index(allele);
+							allele_index = int(hap_x[var_index]);
+							allele = dict_variant_reads[id]['alleles'][allele_index];
 
 							if id not in used_vars: used_vars.append(id);
 							used_alleles[hap_index].append(allele);
@@ -1208,7 +1305,7 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 						total_cov = int(hap_a_count)+int(hap_b_count);
 						if total_cov > 0:
 							if "-" not in dict_var['phase']:
-								phase_string = str(dict_var['phase'].index(dict_var['alleles'][0]))+"|"+str(dict_var['phase'].index(dict_var['alleles'][1]));
+								phase_string = "0|1" if dict_var['phase'][0] == dict_var['alleles'][0] else "1|0";
 							else:
 								phase_string = "0/1";
 							fields_out = [dict_var['chr'],str(dict_var['pos']),str(dict_var['pos']),variant,str(1),"",str(0),dict_var['alleles'][0],dict_var['alleles'][1],str(hap_a_count),str(hap_b_count),str(total_cov),phase_string,"1"];
@@ -1227,7 +1324,7 @@ def process_vcf(stream_vcf, chromosome, contig_ban, set_haplo_blacklist,
 
 			# make sure it is actually phased
 			if "-" not in dict_var['phase']:
-				phase_string = str(dict_var['phase'].index(dict_var['alleles'][0]))+"|"+str(dict_var['phase'].index(dict_var['alleles'][1]));
+				phase_string = "0|1" if dict_var['phase'][0] == dict_var['alleles'][0] else "1|0";
 			else:
 				phase_string = "-|-";
 
@@ -1307,21 +1404,25 @@ def process_mapping_result(input):
 			chrom = var_id.split(args.id_separator)[0];
 			read_allele = fields[3];
 
-			if var_id not in dict_variant_reads: dict_variant_reads[var_id] = generate_variant_dict(fields);
+			if var_id not in dict_variant_reads:
+				dict_variant_reads[var_id] = generate_variant_dict(fields);
+			var_dict = dict_variant_reads[var_id]
+			alleles = var_dict['alleles']
 
-			if read_allele in dict_variant_reads[var_id]['alleles']:
+			# Avoid list membership + list.index() per observation; alleles is always length 2.
+			if read_allele == alleles[0] or read_allele == alleles[1]:
 				# add to the quick lookup dictionary
 				if read_id not in read_vars: read_vars[read_id] = [];
 				read_vars[read_id].append(var_id);
 
-				allele_index = dict_variant_reads[var_id]['alleles'].index(read_allele)
-				dict_variant_reads[var_id]['reads'][allele_index].append(read_id);
+				allele_index = 0 if read_allele == alleles[0] else 1
+				var_dict['reads'][allele_index].append(read_id);
 				mapped_reads += 1;
 				if bam_index not in haplo_count_bam_exclude or len(haplo_count_bam_exclude) == 0:
-					if bam_index not in dict_variant_reads[var_id]['haplo_reads'][allele_index]: dict_variant_reads[var_id]['haplo_reads'][allele_index][bam_index] = [];
-					dict_variant_reads[var_id]['haplo_reads'][allele_index][bam_index].append(read_id);
+					if bam_index not in var_dict['haplo_reads'][allele_index]: var_dict['haplo_reads'][allele_index][bam_index] = [];
+					var_dict['haplo_reads'][allele_index][bam_index].append(read_id);
 			else:
-				dict_variant_reads[var_id]['other_reads'].append(read_id);
+				var_dict['other_reads'].append(read_id);
 			total_reads += 1;
 	stream_in.close();
 
@@ -1330,6 +1431,11 @@ def process_mapping_result(input):
 def call_mapping_script(input):
 	global args;
 	global devnull;
+
+	# prepare optional I/O threading flags for samtools view
+	io_thread_flag = ""
+	if args.io_threads and args.io_threads > 0:
+		io_thread_flag = "-@ "+str(args.io_threads)+" "
 
 	chrom = input[0];
 	bed_out = input[1];
@@ -1342,8 +1448,25 @@ def call_mapping_script(input):
 	mapping_result = tempfile.NamedTemporaryFile(delete=False);
 	mapping_result.close();
 
-	#Save error code from subprocess if not 0, file it writes is truncated and gives unexpected wrong results.
-	run_cmd = "samtools view -h "+bam+" '"+chrom+"': | samtools view -Sh "+samtools_arg+" -L "+bed_out+" -q "+mapq+" - | "+args.python_string+" "+return_script_path()+"/call_read_variant_map.py --baseq "+str(args.baseq)+" --splice 1 --isize_cutoff "+str(isize)+" --variant_table "+mapper_out+" --o "+mapping_result.name
+	# quote paths to survive spaces/parentheses
+	bam_q = shlex.quote(bam)
+	bed_out_q = shlex.quote(bed_out)
+	mapper_out_q = shlex.quote(mapper_out)
+	mapping_result_q = shlex.quote(mapping_result.name)
+	# Use a much faster SNP-only mapper when indels are excluded (default).
+	# Fallback to the original BAM mapper when indels are included.
+	mapper_script = "call_read_variant_map_bam_fast.py" if args.include_indels == 0 else "call_read_variant_map_bam.py"
+	script_q = shlex.quote(return_script_path()+"/"+mapper_script)
+
+	# Save error code from subprocess; if non-zero, file it writes is truncated and gives wrong results.
+	#
+	# IMPORTANT: Apply -L/-q/flags directly to the BAM. The previous pipeline converted the whole
+	# chromosome to SAM first and only then filtered, which is extremely slow on large BAMs.
+	# Use uncompressed BAM (-u) for piping to reduce (re)compression overhead.
+	if args.include_indels == 0:
+		run_cmd = "samtools view "+io_thread_flag+"-u "+samtools_arg+" -L "+bed_out_q+" -q "+mapq+" "+bam_q+" '"+chrom+"': | "+args.python_string+" "+script_q+" --baseq "+str(args.baseq)+" --isize_cutoff "+str(isize)+" --variant_table "+mapper_out_q+" --o "+mapping_result_q
+	else:
+		run_cmd = "samtools view "+io_thread_flag+"-u "+samtools_arg+" -L "+bed_out_q+" -q "+mapq+" "+bam_q+" '"+chrom+"': | "+args.python_string+" "+script_q+" --baseq "+str(args.baseq)+" --splice 1 --isize_cutoff "+str(isize)+" --variant_table "+mapper_out_q+" --o "+mapping_result_q
 	error_code = subprocess.check_call("set -euo pipefail && "+run_cmd, stdout=devnull, shell=True, executable='/bin/bash')
 	if error_code != 0:
 		raise RuntimeError("subprocess.call of call_read_variant_map.py exited with an error, with call: %s"%(run_cmd))
@@ -1665,6 +1788,7 @@ def write_vcf(out_prefix, chromosome_of_interest):
 	global haplotype_pvalue_lookup
 	global sample_column;
 	global csi_index;
+	global vcf_output_source_override;
 	
 	fun_flush_print("#7. Outputting phased VCF...");
 
@@ -1677,26 +1801,55 @@ def write_vcf(out_prefix, chromosome_of_interest):
 
 	#if args.chr != "":
 		#decomp_str = "tabix -h "+args.vcf+" "+args.chr+":"
+	vcf_source = args.vcf;
+	if vcf_output_source_override != "":
+		vcf_source = vcf_output_source_override;
+	if args.prefilter_hets == 1 and args.reintegrate_vcf == 0:
+		fun_flush_print("     Output VCF is being written from the het-filtered input (--reintegrate_vcf 0).");
+
 	if chromosome_of_interest != "":
-		decomp_str = "tabix -h "+args.vcf+" "+ chromosome_of_interest + ":"
+		decomp_str = "tabix -h "+shlex.quote(vcf_source)+" "+ chromosome_of_interest + ":"
 	else:
-		decomp_str = "gunzip -c "+args.vcf;
+		decomp_str = "gunzip -c "+shlex.quote(vcf_source);
 
-	tmp_out = tempfile.NamedTemporaryFile(delete=False);
-	tmp_out.close();
+	# If the input VCF is multi-sample, filter down to the target sample before parsing
+	# to avoid splitting huge sample columns in Python.
+	try:
+		_vf = pysam.VariantFile(vcf_source);
+		n_samples = len(list(_vf.header.samples));
+		_vf.close();
+	except:
+		n_samples = 0;
 
-	subprocess.check_call("set -euo pipefail && "+decomp_str + " | cut -f 1-9,"+str(sample_column+1)+" > "+tmp_out.name,shell=True, executable='/bin/bash')
+	cut_str = "";
+	if n_samples > 1:
+		cut_str = " | cut -f 1-9,"+str(sample_column+1);
 
-	vcf_in = open(tmp_out.name,"r");
+	vcf_in_proc = subprocess.Popen("set -euo pipefail && "+decomp_str+cut_str, shell=True, executable='/bin/bash',
+								   stdout=subprocess.PIPE, text=True)
+	vcf_in = vcf_in_proc.stdout
 
-	#vcf_out = open(args.o+".vcf","w");
-	vcf_out = open(out_prefix + ".vcf", "w");
+	# Stream VCF output directly into bgzip to avoid writing a large intermediate .vcf.
+	fun_flush_print("     Writing compressed VCF...");
+	out_fh = open(out_prefix + ".vcf.gz", "wb")
+	bgzip_args = ["bgzip", "-c"]
+	if args.io_threads and args.io_threads > 0:
+		bgzip_args = ["bgzip", "-@ " + str(args.io_threads), "-c"]
+	bgzip_proc = subprocess.Popen(" ".join(bgzip_args), shell=True, executable='/bin/bash',
+								  stdin=subprocess.PIPE, stdout=out_fh)
+	vcf_out = io.TextIOWrapper(bgzip_proc.stdin, encoding="ascii")
 
 	phase_corrections = 0;
 	unphased_phased = 0;
 
 	set_phased_vars = set(haplotype_lookup.keys());
 	format_text = "";
+	phaser_tags = ['PG','PB','PI','PW','PC','PM'];
+	last_format = None;
+	last_gt_index = None;
+	last_out_format_fields = None;
+	last_out_format_str = None;
+	last_tag_index = None;
 	for line in vcf_in:
 		vcf_columns = line.replace("\n","").split("\t");
 		if "##FORMAT" in line:
@@ -1727,40 +1880,42 @@ def write_vcf(out_prefix, chromosome_of_interest):
 
 			#if args.chr == "" or chrom == args.chr:
 			if chromosome_of_interest == "" or chrom == chromosome_of_interest:
-				if "GT" in vcf_columns[8]:
-					gt_index = vcf_columns[8].split(":").index("GT");
-					genotype = list(vcf_columns[9].split(":")[gt_index]);
+				# Cache FORMAT parsing since it is typically constant across the VCF.
+				fmt = vcf_columns[8];
+				if fmt != last_format:
+					fmt_fields = fmt.split(":");
+					if "GT" in fmt_fields:
+						last_gt_index = fmt_fields.index("GT");
+					else:
+						last_gt_index = -1;
+					last_out_format_fields = list(fmt_fields);
+					for tag in phaser_tags:
+						if tag not in last_out_format_fields: last_out_format_fields.append(tag);
+					last_out_format_str = ":".join(last_out_format_fields);
+					last_tag_index = {};
+					for tag in phaser_tags:
+						last_tag_index[tag] = last_out_format_fields.index(tag);
+					last_format = fmt;
+
+				gt_index = last_gt_index;
+				if gt_index != -1:
+					vcf_format_fields = last_out_format_fields;
+					vcf_columns[8] = last_out_format_str;
+
+					# Keep only the phased sample column (input is pre-cut when multi-sample).
+					sample_fields = vcf_columns[9].split(":");
+					orig_gt = sample_fields[gt_index] if gt_index < len(sample_fields) else "./."
+					genotype = list(orig_gt);
 
 					if "|" in genotype: genotype.remove("|");
 					if "/" in genotype: genotype.remove("/");
 
-					# get only the alleles this individual has
-					alt_alleles = vcf_columns[4].split(",");
-					all_alleles = [vcf_columns[3]] + alt_alleles;
-					ind_alleles = [];
+					sample_fields += ['']*(len(vcf_format_fields) - len(sample_fields));
 
-					for i in range(0,len(all_alleles)):
-						if str(i) in genotype:
-							ind_alleles.append(all_alleles[i]);
-
-					# make sure there are as many entries in each sample as there should be before adding new columns
-					# if there are entries missing add blanks
-					n_fields = len(vcf_columns[8].split(":"));
-					for i in range(9, len(vcf_columns)):
-						sample_fields = len(vcf_columns[i].split(":"));
-						if sample_fields != n_fields:
-							missing_cols = n_fields - sample_fields;
-							vcf_columns[i] += ":" * missing_cols;
-
-					# update the format tags only if they are needed
-					vcf_format_fields = vcf_columns[8].split(":");
-					phaser_tags = ['PG','PB','PI','PW','PC','PM'];
-					for tag in phaser_tags:
-						if tag not in vcf_format_fields: vcf_format_fields.append(tag);
-					vcf_columns[8] = ":".join(vcf_format_fields);
-
-					#generate a unique id
-					unique_id = chrom + args.id_separator + str(pos) + args.id_separator + (args.id_separator.join(all_alleles));
+					# Generate unique ID (avoid building all_alleles unless needed).
+					ref_allele = vcf_columns[3];
+					alt_field = vcf_columns[4];
+					unique_id = chrom + args.id_separator + str(pos) + args.id_separator + ref_allele + args.id_separator + alt_field.replace(",", args.id_separator);
 
 					if unique_id in set_phased_vars:
 						# retrieve the correct allele number of each allele
@@ -1769,9 +1924,15 @@ def write_vcf(out_prefix, chromosome_of_interest):
 						gw_phase_out = ["",""];
 						block_index = haplotype_lookup[unique_id][2];
 
+						all_alleles = [ref_allele] + alt_field.split(",");
+						allele_to_vcf_index = {};
+						for i in range(0,len(all_alleles)):
+							allele_to_vcf_index[all_alleles[i]] = i;
+						tag_i = last_tag_index;
+
 						for allele in haplotype_lookup[unique_id][1].split("|"):
 							allele_base = dict_variant_reads[unique_id]['alleles'][int(allele)];
-							vcf_allele_index = all_alleles.index(allele_base);
+							vcf_allele_index = allele_to_vcf_index[allele_base];
 
 							# get the genome wide phase
 							gw_phase = dict_variant_reads[unique_id]['gw_phase'][int(allele)]
@@ -1792,48 +1953,43 @@ def write_vcf(out_prefix, chromosome_of_interest):
 
 						# if desired to overwrite input phase with GW phase, do it here
 						if "-" not in gw_phase_out:
-							xfields = vcf_columns[9].split(":");
 							new_phase = "|".join(gw_phase_out);
 							if gw_stat >= args.gw_phase_vcf_min_confidence:
-								if "|" in xfields[gt_index] and xfields[gt_index] != new_phase: phase_corrections += 1;
-								if "/" in xfields[gt_index] and xfields[gt_index] != "./." and xfields[gt_index] != new_phase: unphased_phased += 1;
+								if "|" in sample_fields[gt_index] and sample_fields[gt_index] != new_phase: phase_corrections += 1;
+								if "/" in sample_fields[gt_index] and sample_fields[gt_index] != "./." and sample_fields[gt_index] != new_phase: unphased_phased += 1;
 
 								if args.gw_phase_vcf == 1 or args.gw_phase_vcf == 2:
-									xfields[gt_index] = new_phase;
-									vcf_columns[9] = ":".join(xfields);
+									sample_fields[gt_index] = new_phase;
 
 							if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
-								xfields[gt_index] = "|".join(alleles_out);
-								vcf_columns[9] = ":".join(xfields);
+								sample_fields[gt_index] = "|".join(alleles_out);
 
-						sample_fields = vcf_columns[9].split(":");
-						sample_fields += ['']*(len(vcf_format_fields) - len(sample_fields));
-						sample_fields[vcf_format_fields.index('PG')] = "|".join(alleles_out);
-						sample_fields[vcf_format_fields.index('PB')] = list_to_string(variants_out);
-						sample_fields[vcf_format_fields.index('PI')] = str(block_index);
-						sample_fields[vcf_format_fields.index('PM')] = str(max_block_maf);
-						sample_fields[vcf_format_fields.index('PW')] = "|".join(gw_phase_out);
-						sample_fields[vcf_format_fields.index('PC')] = str(gw_stat);
+						sample_fields[tag_i['PG']] = "|".join(alleles_out);
+						sample_fields[tag_i['PB']] = ",".join(variants_out);
+						sample_fields[tag_i['PI']] = str(block_index);
+						sample_fields[tag_i['PM']] = str(max_block_maf);
+						sample_fields[tag_i['PW']] = "|".join(gw_phase_out);
+						sample_fields[tag_i['PC']] = str(gw_stat);
 
 						# ADD PS IF NEEDED
 						if args.gw_phase_vcf == 2 and gw_stat < args.gw_phase_vcf_min_confidence:
 							if 'PS' not in vcf_format_fields:
+								# Make local copies so we don't mutate cached format lists.
+								vcf_format_fields = list(vcf_format_fields) + ["PS"];
 								vcf_columns[8] += ":PS";
-								vcf_format_fields.append("PS");
 								sample_fields.append('');
 							sample_fields[vcf_format_fields.index('PS')] = str(block_index);
 
 						vcf_columns[9] = ":".join(sample_fields);
 
 					else:
-						sample_fields = vcf_columns[9].split(":");
-						sample_fields += ['']*(len(vcf_format_fields) - len(sample_fields));
-						sample_fields[vcf_format_fields.index('PG')] = "/".join(sorted(genotype));
-						sample_fields[vcf_format_fields.index('PB')] = '.';
-						sample_fields[vcf_format_fields.index('PI')] = '.';
-						sample_fields[vcf_format_fields.index('PM')] = '.';
-						sample_fields[vcf_format_fields.index('PW')] = vcf_columns[9].split(":")[gt_index];
-						sample_fields[vcf_format_fields.index('PC')] = '.';
+						tag_i = last_tag_index;
+						sample_fields[tag_i['PG']] = "/".join(sorted(genotype));
+						sample_fields[tag_i['PB']] = '.';
+						sample_fields[tag_i['PI']] = '.';
+						sample_fields[tag_i['PM']] = '.';
+						sample_fields[tag_i['PW']] = sample_fields[gt_index];
+						sample_fields[tag_i['PC']] = '.';
 						vcf_columns[9] = ":".join(sample_fields);
 
 				# if VCF contains multiple samples, only output the phased sample
@@ -1841,16 +1997,19 @@ def write_vcf(out_prefix, chromosome_of_interest):
 
 				vcf_out.write("\t".join(out_cols)+"\n");
 
+	# Close pipes and check subprocess exit codes.
 	vcf_out.close();
-	os.remove(tmp_out.name);
+	out_fh.close();
+	bgzip_rc = bgzip_proc.wait()
+	vcf_in_rc = vcf_in_proc.wait()
+	if bgzip_rc != 0 or vcf_in_rc != 0:
+		fatal_error("Error while writing bgzipped VCF output (bgzip rc=%d, input rc=%d)."%(bgzip_rc, vcf_in_rc))
 
-	fun_flush_print("     Compressing and tabix indexing output VCF...");
+	fun_flush_print("     Tabix indexing output VCF...");
 	tabix_cmd = "tabix";
 	if csi_index == 1: tabix_cmd += " --csi";
-	#subprocess.check_call("set -euo pipefail && "+"bgzip -f "+args.o+".vcf; "+tabix_cmd+" -f -p vcf "+args.o+".vcf.gz", shell=True, executable='/bin/bash')
-	subprocess.check_call("set -euo pipefail && " + "bgzip -f " + \
-						  out_prefix + ".vcf; " + tabix_cmd + " -f -p vcf " \
-						  + out_prefix + ".vcf.gz", shell=True, executable='/bin/bash')
+	vcf_gz_path = shlex.quote(out_prefix + ".vcf.gz")
+	subprocess.check_call("set -euo pipefail && " + tabix_cmd + " -f -p vcf " + vcf_gz_path, shell=True, executable='/bin/bash')
 
 	return([unphased_phased, phase_corrections]);
 
@@ -2311,14 +2470,21 @@ def find_weak_points(variants, variant_connections):
 	# it returns a dictionary with the counts at each point
 
 	dict_counts = collections.OrderedDict()
+	var_index = {v: i for i, v in enumerate(variants)}
 
 	for position in range(2,len(variants)-1):
 		dict_counts[position] = 0;
 
 		for xvar in variant_connections:
+			xvar_i = var_index.get(xvar);
+			if xvar_i is None:
+				continue
 			for connection in variant_connections[xvar]:
+				conn_i = var_index.get(connection);
+				if conn_i is None:
+					continue
 				# check if variant spans position
-				if variants.index(xvar) < (position - 0.5) and variants.index(connection) > (position - 0.5):
+				if xvar_i < (position - 0.5) and conn_i > (position - 0.5):
 					dict_counts[position] += 1;
 
 	return(dict_counts);
@@ -2357,4 +2523,3 @@ def current_mem_usage():
 
 if __name__ == "__main__":
 	main();
-

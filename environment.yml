@@ -1,0 +1,17 @@
+name: phaser-fast-beta
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.9
+  - numpy
+  - scipy
+  - pysam
+  - pandas
+  - intervaltree
+  - samtools
+  - bcftools
+  - htslib
+  - bedtools
+  - pip
+

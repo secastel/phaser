@@ -41,6 +41,37 @@ Run command:
 python3 phaser.py --vcf NA06986.vcf.gz --bam NA06986.2.M_111215_4.bam --paired_end 1 --mapq 255 --baseq 10 --sample NA06986 --o phaser_test_case
 ```
 
+**Het prefiltering and VCF output mode**
+
+phASER can prefilter the input VCF to heterozygous sites for the selected sample before phasing. This is mainly a speed optimization for VCFs dominated by homozygous sites (common in large, diverse cohorts) and does not change the phasing pipeline logic.
+
+* `--prefilter_hets` _(1)_ - Prefilter the input VCF to sample-specific heterozygous sites before phasing (0,1).
+* `--reintegrate_vcf` _(1)_ - Only applies when `--prefilter_hets 1` and `--write_vcf 1`.  
+  * `1`: write output against the full input VCF for backward compatibility.
+  * `0`: write output from the het-filtered VCF only (smaller/faster output step).
+
+If `--prefilter_hets 0`, reintegration is automatically disabled because there is no het-only intermediate VCF to merge back.
+
+If your VCF does not contain many homozygous sites, you can set `--prefilter_hets 0` to skip prefilter overhead.
+
+**Runtime comparison (baseline vs tuned package)**
+
+The plot below summarizes wall-clock runtime benchmarks (1 thread) on two datasets:
+* `NA06986` (as included in package manual)
+* `NA20808` (as downloaded from 1KG + SHAPEIT5)
+
+It compares:
+* baseline package
+* tuned package with prefilter OFF
+* tuned package with prefilter ON + reintegration ON
+* tuned package with prefilter ON + reintegration OFF
+
+![phASER runtime comparison](../docs/benchmarks/runtime_comparison_bar.png)
+
+Note: `prefilter ON + reintegration OFF` is the fastest mode when you only need phased het-site output, because full-VCF reintegration is skipped.
+Benchmark details and speedups are summarized in `../docs/benchmarks/runtime_benchmark_report.md`.
+This tuneup benchmarking update was prepared by [PEJ Lab](https://pejlab.org).
+
 **Useful files**
 
 We suggest that you exclude variants in HLA genes using the "--blacklist" argument becuase of the high mapping error rate in these genes. A file containing coordinates is included here for convenience:
@@ -88,6 +119,8 @@ All input BAMs will be used to generate haplotypes and phase variants, so they m
 * **--ab_q_cutoff** _(0)_ - Bottom quantile to cutoff for read aligned bases. Reads with fewer aligned bases than this aligned bases quantile will not be included in the phasing.
 * **--blacklist** _()_ - BED file containing genomic intervals to be excluded from phasing (for example HLA).
 * **--write_vcf** _(1)_ - Create a VCF containing phasing information (0,1).
+* **--prefilter_hets** _(1)_ - Prefilter the input VCF to sample-specific heterozygous sites before phasing (0,1).
+* **--reintegrate_vcf** _(1)_ - When `--prefilter_hets 1` and `--write_vcf 1`, write output against the full input VCF for backward compatibility (1) or write only from the het-filtered VCF (0). If `--prefilter_hets 0`, this is automatically disabled.
 * **--include_indels** _(0)_ - Include indels in the analysis (0,1). NOTE: since mapping is a problem for indels including them will likely result in poor quality phasing unless specific precautions have been taken.
 * **--output_read_ids** _(0)_ - Output read IDs in the coverage files (0,1).
 * **--remove_dups** _(1)_ - Remove duplicate reads from all analyses (0,1).
@@ -107,6 +140,13 @@ All input BAMs will be used to generate haplotypes and phase variants, so they m
 * **--temp_dir** _()_ - Location of temporary directory to use for storing files. If left blank will default to system temp dir. NOTE: potentially large files will be stored in this directory, so please ensure there is sufficient free space.
 * **--max_items_per_thread** _(100,000)_ - Maximum number of items that can be assigned to a single thread to process. NOTE: if this number is too high Python will stall when trying to join the pools.
 * **--process_slow** _(0)_ - Process each chromosome one by one (0,1). NOTE: In the organism that don't have highly curated chromosome there could be numerous scaffolds. Large number of scaffolds will increase memory consumption. In that case each contig/chromosome/scaffold can be processed one by one to avoid memory issues. `process_slow` should be used with `threads 1`.
+
+**Practical speed guidance**
+* Keep `--prefilter_hets 1` for cohort-scale VCFs with many hom-ref/hom-alt records.
+* Use `--reintegrate_vcf 1` when downstream tools expect a full VCF layout (backward compatible output).
+* Use `--reintegrate_vcf 0` when downstream only needs phased het sites and you want faster VCF output.
+* For cohort analyses that still need hom-site-preserving outputs, run phASER with `--reintegrate_vcf 0` per sample and do reintegration once in a batch outside phASER to avoid repeating reintegration cost sample-by-sample.
+* If your VCF already has relatively few homozygous records, test `--prefilter_hets 0` since prefiltering may not help enough to offset its own setup cost.
 
 
 ## Debug / Development / Reporting

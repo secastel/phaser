@@ -1,0 +1,13 @@
+# Python dependencies for phASER Fast Beta.
+#
+# Note: phASER also requires external command-line tools on PATH:
+#   samtools, bcftools, bgzip, tabix, bedtools
+#
+# Recommendation: use the provided conda `environment.yml` if possible.
+
+numpy
+scipy
+pysam
+pandas
+intervaltree
+
