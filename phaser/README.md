@@ -31,10 +31,10 @@ Requires a VCF and BAM, produces a VCF with computed haplotype phases and result
 **Test case**
 
 1000 Genomes individual NA06986 with Phase 3 genotype data and Geuvadis RNA-Seq data. Coordinates are in hg19.
-* VCF: https://www.dropbox.com/s/u68p4po2fut2eid/NA06986.vcf.gz
-* VCF Index: https://www.dropbox.com/s/328dvei4cqbs7n6/NA06986.vcf.gz.tbi
-* BAM: https://www.dropbox.com/s/rxrr01dv4zyhagj/NA06986.2.M_111215_4.bam
-* BAM Index: https://www.dropbox.com/s/vunmr97j8v6dqi8/NA06986.2.M_111215_4.bam.bai
+* VCF: https://drive.google.com/file/d/178J_c917Ucx3FBkox5Wz0ZanCNlezOfb
+* VCF Index: https://drive.google.com/file/d/1ifgj1Oz33yWgL66I_4KdMIkYSh11Jyzs
+* BAM: https://drive.google.com/file/d/13Uuk0LUv8mdpFZ_l5cm4aHfqzRLz1egG
+* BAM Index: https://drive.google.com/file/d/1HTYZl45jjCMuOz-DP4Zvrn843_n8pk1f
 
 Run command:
 ```
@@ -77,22 +77,22 @@ This tuneup benchmarking update was prepared by [PEJ Lab](https://pejlab.org).
 We suggest that you exclude variants in HLA genes using the "--blacklist" argument becuase of the high mapping error rate in these genes. A file containing coordinates is included here for convenience:
 
 hg19:
-* Without 'chr' in contig name: https://www.dropbox.com/s/fbfntaa4oc75x6m/hg19_hla.bed.gz
-* With 'chr' in contig name: https://www.dropbox.com/s/wm9gkb66j7d7xjx/hg19_hla.chr.bed.gz
+* Without 'chr' in contig name: https://drive.google.com/file/d/1fxahlcPzNg6vrj9OeVREV0FPeMI8Por2
+* With 'chr' in contig name: https://drive.google.com/file/d/11G7iyO1_-ij4x2OPfg8rF3M9Bwb_1KLR
 
 hg38:
-* Without 'chr' in contig name: https://www.dropbox.com/s/9v5dpjrqm2k2cx7/hg38_hla.bed.gz
-* With 'chr' in contig name: https://www.dropbox.com/s/1zapu5n4aeyi1g6/hg38_hla.chr.bed.gz
+* Without 'chr' in contig name: https://drive.google.com/file/d/1zT15dxRZCYPVeqojorMgGhgeJzSM8g3W
+* With 'chr' in contig name: https://drive.google.com/file/d/1yame4BEBZ9Xv4XqvYBe7YKA9ITJAa2QK
 
 If your goal is to do gene level allelic expression analysis, you may want to consider using the "--haplo_count_blacklist" argument, which can exclude known problem sites from haplotypic counts. If you have not taken any percautions to deal with allelic mapping bias, we suggest you exclude sites with known bias, as outlined in [Castel et al](http://genomebiology.biomedcentral.com/articles/10.1186/s13059-015-0762-6). A file containing coordinates for hg19 is included here for convenience: 
 
 hg19:
-* Without 'chr' in contig name: https://www.dropbox.com/s/rh1yp5c9bgguso1/hg19_haplo_count_blacklist.bed.gz
-* With 'chr' in contig name: https://www.dropbox.com/s/i8ly89sfztlmomq/hg19_haplo_count_blacklist.chr.bed.gz
+* Without 'chr' in contig name: https://drive.google.com/file/d/1zGlv9Yr1iawpQ_hX7QTyu0A7w5_PvJtK
+* With 'chr' in contig name: https://drive.google.com/file/d/1eoF_gZTs9fQuKFFOU-xF-rv6mug50IJf
 
 hg38:
-* Without 'chr' in contig name: https://www.dropbox.com/s/k9j3kbnpfix8lwi/hg38_haplo_count_blacklist.bed.gz
-* With 'chr' in contig name: https://www.dropbox.com/s/9cn9477bcutvuc7/hg38_haplo_count_blacklist.chr.bed.gz
+* Without 'chr' in contig name: https://drive.google.com/file/d/1HOk-F4EXSw_wV0ZmuSsyQqJG2hCKyThI
+* With 'chr' in contig name: https://drive.google.com/file/d/1ImjYVZF9tVq_zK9b6wUyO9g59xqM2EHs
 
 
 **Combining data across sequencing run types**
