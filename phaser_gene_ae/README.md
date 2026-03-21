@@ -15,12 +15,12 @@ Requires phASER to have been run with a phased VCF as input with unphased_vars e
 The specific features to produce haplotypic counts for must be provided in BED format. This is most often genes. A file containing coordinates for gencode genes is included here for convenience. Note that these annotations have been filtered to be consistent with what was used for calling GTEx eQTLs. Please ensure that they contain annotations appropriate for your specific analysis.
 
 hg19:
-* Without 'chr' in contig name: https://www.dropbox.com/s/1u9zo1kx61zx6ca/gencode.v19.GRCh37.genes.bed.gz?dl=0
-* With 'chr' in contig name: https://www.dropbox.com/s/am09zwpjhs01k8u/gencode.v19.GRCh37.genes.chr.bed.gz?dl=0
+* Without 'chr' in contig name: https://drive.google.com/file/d/1u69xWw4Xt5II8ORvM3m9XtS-T12cxWiV
+* With 'chr' in contig name: https://drive.google.com/file/d/1a4s2_AuWC2uV4Y0jCgK0FwzYEPgXgbN8
 
 hg38:
-* Without 'chr' in contig name: https://www.dropbox.com/s/ncdika74bcgtrc2/gencode.v26.GRCh38.genes.bed.gz?dl=0
-* With 'chr' in contig name: https://www.dropbox.com/s/4vmgbk9fcegxk0r/gencode.v26.GRCh38.genes.chr.bed.gz?dl=0
+* Without 'chr' in contig name: https://drive.google.com/file/d/1SV5kcjziDApTZi2TXXnYhyKG0dpR4m_m
+* With 'chr' in contig name: https://drive.google.com/file/d/1SlNhMweyqyo_5izKtzcnnP_idZDHaPcm
 
 
 # Arguments
